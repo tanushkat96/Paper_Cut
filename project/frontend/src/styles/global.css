@@ -1,0 +1,290 @@
+/*
+  Design concept: "Papercut" — the product converts paper-era documents,
+  so the visual language leans into paper, ink, and the stamp/correction
+  mark rather than a generic SaaS dashboard look.
+
+  Palette:
+    --paper:      #FAF8F3   (warm off-white page)
+    --paper-edge: #E8E2D4   (borders, dividers — like a page edge)
+    --ink:        #1F2320   (near-black, slightly warm — "ink" not pure black)
+    --ink-soft:   #5B5F58   (secondary text)
+    --stamp:      #B4432E   (rubber-stamp red — accent, used sparingly)
+    --stamp-soft: #F1DCD6   (tint of stamp for success/highlight backgrounds)
+
+  Type:
+    Display / headings: "Fraunces" (warm, editorial serif — evokes print)
+    Body / UI:           "Source Sans 3" (clean, legible sans)
+*/
+
+:root {
+  --paper: #faf8f3;
+  --paper-edge: #e8e2d4;
+  --ink: #1f2320;
+  --ink-soft: #5b5f58;
+  --stamp: #b4432e;
+  --stamp-soft: #f1dcd6;
+
+  --font-display: "Fraunces", Georgia, serif;
+  --font-body: "Source Sans 3", -apple-system, sans-serif;
+
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.app-shell {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 48px 24px 96px;
+}
+
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 64px;
+  text-decoration: none;
+  color: inherit;
+  width: fit-content;
+}
+
+.brand__mark {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 22px;
+  letter-spacing: -0.01em;
+}
+
+.brand__mark::after {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background: var(--stamp);
+  margin-left: 2px;
+  transform: translateY(-8px);
+}
+
+.brand__tagline {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+h1 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 40px;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  margin: 0 0 12px;
+  max-width: 18ch;
+}
+
+.lede {
+  font-size: 17px;
+  color: var(--ink-soft);
+  max-width: 52ch;
+  margin: 0 0 40px;
+}
+
+.tool-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--paper-edge);
+  border: 1px solid var(--paper-edge);
+}
+
+@media (max-width: 560px) {
+  .tool-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.tool-card {
+  background: var(--paper);
+  padding: 28px;
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: background 0.15s ease;
+}
+
+.tool-card:hover {
+  background: #f3efe5;
+}
+
+.tool-card__label {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.tool-card__title {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 500;
+}
+
+.tool-card__desc {
+  font-size: 14px;
+  color: var(--ink-soft);
+  margin: 0;
+}
+
+.back-link {
+  display: inline-block;
+  margin-bottom: 32px;
+  color: var(--ink-soft);
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.back-link:hover {
+  color: var(--ink);
+}
+
+.dropzone {
+  border: 1.5px dashed var(--paper-edge);
+  padding: 56px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+  background: #fff;
+}
+
+.dropzone--active {
+  border-color: var(--stamp);
+  background: var(--stamp-soft);
+}
+
+.dropzone__title {
+  font-family: var(--font-display);
+  font-size: 20px;
+  margin: 0 0 6px;
+}
+
+.dropzone__hint {
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin: 0;
+}
+
+.dropzone input[type="file"] {
+  display: none;
+}
+
+.status-panel {
+  border: 1px solid var(--paper-edge);
+  padding: 24px;
+  background: #fff;
+}
+
+.status-panel__file {
+  font-size: 14px;
+  color: var(--ink-soft);
+  margin: 0 0 16px;
+  word-break: break-all;
+}
+
+.progress-track {
+  height: 3px;
+  background: var(--paper-edge);
+  width: 100%;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--ink);
+  transition: width 0.2s ease;
+}
+
+.status-label {
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin-top: 10px;
+}
+
+.error-box {
+  border-left: 3px solid var(--stamp);
+  background: var(--stamp-soft);
+  padding: 16px 20px;
+  margin-top: 16px;
+}
+
+.error-box__title {
+  font-weight: 600;
+  margin: 0 0 4px;
+  font-size: 14px;
+}
+
+.error-box__msg {
+  margin: 0;
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.success-box {
+  margin-top: 16px;
+}
+
+.button {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 12px 20px;
+  border: none;
+  cursor: pointer;
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.button:hover {
+  background: #34382f;
+}
+
+.button--ghost {
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--paper-edge);
+}
+
+.button--ghost:hover {
+  background: #f3efe5;
+}
+
+.button-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.supported-info {
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin-top: 12px;
+}
+
+:focus-visible {
+  outline: 2px solid var(--stamp);
+  outline-offset: 2px;
+}
