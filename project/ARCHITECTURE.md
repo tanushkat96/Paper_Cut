@@ -8,6 +8,10 @@ A web-based PDF utility platform inspired by tools such as iLovePDF, built incre
 - Word → PDF
 - PDF → Word
 
+**Module 2 scope (implemented):**
+- Merge PDF
+- Split PDF
+
 Future modules are added only after Module 1 is stable.
 
 ---
@@ -27,6 +31,10 @@ Backend
    |
    +---- PDF → Word Service
    |
+   +---- Merge PDF Service
+   |
+   +---- Split PDF Service
+   |
    +---- File Service
    |
    +---- Validation / Cleanup
@@ -40,32 +48,38 @@ A monolithic backend is preferred initially — it reduces infrastructure comple
 
 ## 3. High-Level Architecture
 
-```text
-                    ┌─────────────────────┐
-                    │       Browser       │
-                    │ React + TypeScript  │
-                    └──────────┬──────────┘
-                               │
-                               │ HTTPS
-                               ▼
-                    ┌─────────────────────┐
-                    │       FastAPI       │
-                    │      REST API       │
-                    └──────────┬──────────┘
-                               │
-                 ┌─────────────┼─────────────┐
-                 │             │             │
-                 ▼             ▼             ▼
-        ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
-        │ Word → PDF   │ │ PDF → Word   │ │ File Service │
-        │   Service    │ │   Service    │ │              │
-        └──────┬───────┘ └──────┬───────┘ └──────────────┘
-               │                │
-               ▼                ▼
-        ┌──────────────┐ ┌──────────────┐
-        │  LibreOffice │ │   PyMuPDF    │
-        │   (pooled)   │ │ python-docx  │
-        └──────────────┘ └──────────────┘
+```text- 
+         ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
+-        │ Word → PDF   │ │ PDF → Word   │ │ File Service │
+-        │   Service    │ │   Service    │ │              │
+-        └──────┬───────┘ └──────┬───────┘ └──────────────┘
+-               │                │
+-               ▼                ▼
+-        ┌──────────────┐ ┌──────────────┐
+-        │ LibreOffice  │ │   PyMuPDF    │
+-        │   (pooled)   │ │ python-docx  │
+-        └──────────────┘ └──────────────┘
++        ┌──────────────┐ ┌──────────────┐
++        │ Word → PDF   │ │ PDF → Word   │
++        │   Service    │ │   Service    │
++        └──────┬───────┘ └──────┬───────┘
++               │                │
++               ▼                ▼
++        ┌──────────────┐ ┌──────────────┐
++        │ LibreOffice  │ │   PyMuPDF    │
++        │   (pooled)   │ │ python-docx  │
++        └──────────────┘ └──────────────┘
++        ┌──────────────┐ ┌──────────────┐
++        │ Merge PDF    │ │ Split PDF    │
++        │   Service    │ │   Service    │
++        └──────┬───────┘ └──────┬───────┘
++               │                │
++               └───────┬────────┘
++                       ▼
++                 ┌──────────────┐
++                 │   PyMuPDF    │
++                 │   zipfile    │
++                 └──────────────┘
 ```
 
 ---
@@ -84,7 +98,10 @@ frontend/
 │   ├── pages/
 │   │   ├── Home.tsx
 │   │   ├── WordToPdf.tsx
-│   │   └── PdfToWord.tsx
+│   │   ├── PdfToWord.tsx
+|   |   ├── MergePdf.tsx
+│   │   └── SplitPdf.tsx
+
 │   │
 │   ├── services/
 │   │   └── api.ts
@@ -119,12 +136,16 @@ app/
 ├── api/
 │   └── routes/
 │       ├── word_to_pdf.py
-│       └── pdf_to_word.py
+│       ├── pdf_to_word.py
+|       ├── merge_pdf.py
+│       └── split_pdf.py
 │
 ├── services/
-│   ├── word_to_pdf.py
-│   ├── pdf_to_word.py
-│   └── file_service.py
+│       ├── word_to_pdf.py
+│       ├── pdf_to_word.py
+|       ├── merge_pdf.py
+│       ├── split_pdf.py
+|       └── file_service.py
 │
 ├── schemas/
 │   └── conversion.py
@@ -238,8 +259,70 @@ Scanned PDFs requiring OCR are a later enhancement — **not silently produced a
 PyMuPDF extraction + python-docx reconstruction preserves text content but **not** layout: tables, multi-column text, images, and most font/style fidelity are lost. This is a known, accepted limitation for Module 1 and must be stated in the README and surfaced in the UI (e.g. a note near the PDF → Word upload control).
 
 ---
+## 8. Merge PDF
 
-## 8. File Lifecycle
+Merges two or more PDF files into a single PDF while preserving the order selected by the user.
+
+```text
+Multiple PDFs
+     |
+     ▼
+File validation
+     |
+     ▼
+Request-scoped temp workspace
+     |
+     ▼
+PyMuPDF insert_pdf()
+     |
+     ▼
+merged.pdf
+     |
+     ▼
+Download response
+     |
+     ▼
+Temporary files deleted
+---
+
+## 9. Split PDF
+
+Splits a PDF into multiple PDF files. The initial implementation supports splitting every page and custom page ranges.
+
+```text
+PDF
+ |
+ ▼
+File validation
+ |
+ ▼
+Request-scoped temp workspace
+ |
+ ▼
+PyMuPDF
+ |
+ ├── Every page
+ │      ├── page-1.pdf
+ │      ├── page-2.pdf
+ │      └── ...
+ │
+ └── Custom ranges
+        ├── pages-1-3.pdf
+        ├── page-5.pdf
+        └── ...
+ |
+ ▼
+ZIP archive
+ |
+ ▼
+Download response
+ |
+ ▼
+Temporary files deleted
+
+---
+
+## 10. File Lifecycle
 
 Uploaded files are always temporary and request-scoped.
 
@@ -265,7 +348,7 @@ Delete workspace directory (input + output)
 
 ---
 
-## 9. Security Considerations
+## 11. Security Considerations
 
 - Restrict allowed file extensions (`.doc`, `.docx`, `.pdf` only)
 - Validate MIME types where possible, not just extension
@@ -280,7 +363,7 @@ Delete workspace directory (input + output)
 
 ---
 
-## 10. Error Handling
+## 12. Error Handling
 
 The API returns clear, machine-readable errors for:
 
@@ -293,6 +376,9 @@ The API returns clear, machine-readable errors for:
 | `CONVERSION_TIMEOUT` | Conversion exceeded `CONVERSION_TIMEOUT_SECONDS` |
 | `CONVERSION_FAILED` | Generic conversion failure |
 | `MISSING_CONVERSION_TOOL` | LibreOffice/dependency unavailable server-side |
+| `TOO_FEW_FILES` | Merge PDF: fewer than 2 files supplied |
+| `INVALID_PAGE_RANGE` | Split PDF: malformed or out-of-bounds page range |
+| `ZIP_CREATION_FAILED` | Split PDF: failed to create output archive |
 | `INTERNAL_ERROR` | Unexpected server error |
 
 Response shape:
@@ -309,13 +395,13 @@ Response shape:
 
 A failed conversion must never crash the backend process — all conversion calls are wrapped and isolated per request.
 
-### 10.1 Rate limiting decision for Module 1
+### 12.1 Rate limiting decision for Module 1
 
 Rate limiting is **out of scope for the Module 1 Definition of Done**, but a basic IP-based limiter (e.g. `slowapi`) should be stubbed in `core/config.py` behind a feature flag, so it can be switched on before any public deployment without a code change.
 
 ---
 
-## 11. Concurrency & Isolation Summary
+## 13. Concurrency & Isolation Summary
 
 | Concern | Module 1 approach |
 |---|---|
@@ -323,12 +409,14 @@ Rate limiting is **out of scope for the Module 1 Definition of Done**, but a bas
 | Temp file collisions | UUID-named per-request workspace dirs |
 | Long-running conversions | Hard timeout, default 60s |
 | Crash isolation | Conversion errors caught per-request, never propagate to process crash |
+| Merge PDF concurrency | Request-scoped workspace; PyMuPDF processing |
+| Split PDF concurrency | Request-scoped workspace; PyMuPDF + ZIP processing |
 
 ---
 
-## 12. Future Architecture
+## 14. Future Architecture
 
-When processing volume increases, conversion moves to background workers.
+When processing volume increases, PDF processing and conversion can move to background workers.
 
 ```text
 Frontend
@@ -344,6 +432,8 @@ Worker
    |
    ├── LibreOffice (pooled)
    ├── PyMuPDF
+   ├── Merge PDF
+   ├── Split PDF
    └── OCR
    |
    ▼

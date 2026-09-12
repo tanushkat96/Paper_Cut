@@ -11,6 +11,11 @@ Landing Page
  ├── Word to PDF
  |
  └── PDF to Word
+ |
+ ├── Merge PDF
+ |
+ └── Split PDF
+ 
 ```
 
 ---
@@ -138,10 +143,156 @@ Validate PDF (extension, MIME, size)
                           ▼
                    Cleanup temp workspace (always, even on error)
 ```
+## 4. Merge PDF Flow
+
+```text
+User
+ |
+ ▼
+Merge PDF page
+ |
+ ▼
+Select multiple PDFs (drag & drop or browse)
+ |
+ ▼
+Files shown in a list, in selection order
+ |
+ ▼
+User reorders (↑ / ↓) and/or removes files
+ |
+ ▼
+User clicks "Merge PDF"
+ |
+ ├── Fewer than 2 files → Show error (TOO_FEW_FILES), no request sent
+ |
+ └── 2+ files
+       |
+       ▼
+Upload all files (multipart, field name "files", in list order)
+       |
+       ▼
+Backend API
+       |
+       ▼
+Validate every file (extension, MIME, size — same rules as other PDF uploads)
+       |
+       ├── Any invalid → Error response, no partial merge
+       |
+       └── All valid
+              |
+              ▼
+        Save each into request workspace (order preserved)
+              |
+              ▼
+        PyMuPDF: insert_pdf() each file into a new document, in order
+              |
+              ├── Any file unreadable/corrupted → CORRUPTED_DOCUMENT
+              |
+              └── Success
+                    |
+                    ▼
+               merged.pdf generated
+                    |
+                    ▼
+              Return merged.pdf
+                    |
+                    ▼
+             Download button
+                    |
+                    ▼
+             User downloads merged.pdf
+                    |
+                    ▼
+             Cleanup temp workspace (always, even on error)
+```
+
+React → FastAPI → validation → temporary workspace → PyMuPDF → merged PDF → response → cleanup
 
 ---
 
-## 4. Frontend State Flow
+## 5. Split PDF Flow
+
+```text
+User
+ |
+ ▼
+Split PDF page
+ |
+ ▼
+Select / Drag & Drop a single PDF
+ |
+ ▼
+Choose split mode
+ |
+ ├── Every page (default)
+ |
+ └── Custom ranges (e.g. "1-3,5,7-9")
+       |
+       ▼
+User clicks "Split PDF"
+       |
+       ▼
+Upload file (+ page_ranges if custom mode)
+       |
+       ▼
+Backend API
+       |
+       ▼
+Validate PDF (extension, MIME, size)
+       |
+       ├── Invalid → Error
+       |
+       └── Valid
+              |
+              ▼
+        Save into request workspace
+              |
+              ▼
+        PyMuPDF: read page count
+              |
+              ▼
+        Determine ranges:
+          - no page_ranges → one range per page
+          - page_ranges given → parse & validate (see Section 9)
+              |
+              ├── Malformed / out-of-bounds → INVALID_PAGE_RANGE
+              |
+              └── Valid ranges
+                    |
+                    ▼
+              For each range, in requested order:
+                insert_pdf(from_page, to_page) into a new doc
+                save as page-N.pdf or pages-A-B.pdf
+                    |
+                    ├── Failure → CONVERSION_FAILED
+                    |
+                    └── Success
+                          |
+                          ▼
+                    zipfile: bundle all generated PDFs
+                          |
+                          ├── Zip failure → ZIP_CREATION_FAILED
+                          |
+                          └── Success
+                                |
+                                ▼
+                          Return split-pdf.zip
+                                |
+                                ▼
+                         Download button
+                                |
+                                ▼
+                        User downloads split-pdf.zip
+                                |
+                                ▼
+                        Cleanup temp workspace (always, even on error)
+```
+
+React → FastAPI → validation → PyMuPDF → individual PDFs → ZIP → response → cleanup
+
+---
+
+## 6. Frontend State Flow
 
 ```text
 IDLE
@@ -177,7 +328,7 @@ The UI must map each backend error `code` to a distinct, user-readable message �
 
 ---
 
-## 5. Word → PDF API
+## 7. Word → PDF API
 
 ### Request
 ```http
@@ -206,7 +357,7 @@ Content-Type: application/pdf
 
 ---
 
-## 6. PDF → Word API
+## 8. PDF → Word API
 
 ### Request
 ```http
@@ -235,7 +386,7 @@ Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.doc
 
 ---
 
-## 7. File Validation Flow & Error Codes
+## 9. File Validation Flow & Error Codes
 
 ```text
 File received
@@ -265,7 +416,10 @@ Content validation (readable, not corrupted)
 | PDF text extraction | `NO_TEXT_LAYER` | "This PDF has no selectable text (likely scanned). OCR isn't supported yet." |
 | Conversion engine | `CONVERSION_TIMEOUT` | "This is taking longer than expected. Please try again or use a smaller file." |
 | Conversion engine | `CONVERSION_FAILED` | "Conversion failed. Please try again." |
-| Server dependency missing | `MISSING_CONVERSION_TOOL` | "The service is temporarily unavailable. Please try again shortly." |
+| Server dependency missing | `MISSING_CONVERSION_TOOL` | "The service is temporarily unavailable. Please try again shortly " |
+| Merge — not enough files | `TOO_FEW_FILES` | "Merging needs at least two PDF files." |
+| Split — bad range string | `INVALID_PAGE_RANGE` | "Check the page range — it should look like 1-3,5,7-9 and fit within the document." |
+| Split — archive step failed | `ZIP_CREATION_FAILED` | "We couldn't build the download archive. Please try again." |
 | Anything unexpected | `INTERNAL_ERROR` | "Something went wrong on our end." |
 
 Limits are configurable via environment variables:
@@ -273,11 +427,12 @@ Limits are configurable via environment variables:
 ```env
 MAX_FILE_SIZE_MB=25
 CONVERSION_TIMEOUT_SECONDS=60
+MIN_FILES_FOR_MERGE=2
 ```
 
 ---
 
-## 8. Cleanup Flow
+## 10. Cleanup Flow
 
 ```text
 Request starts
@@ -302,9 +457,9 @@ Because each request has its own workspace directory, cleanup for one request ne
 
 ---
 
-## 9. Future User Flow
+## 11. Future User Flow
 
-After Module 1 is stable:
+After Module 2 is stable:
 
 ```text
 Home

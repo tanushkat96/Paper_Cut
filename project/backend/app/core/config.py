@@ -8,6 +8,7 @@ class Settings:
 
     MAX_FILE_SIZE_MB: int = int(os.getenv("MAX_FILE_SIZE_MB", "25"))
     CONVERSION_TIMEOUT_SECONDS: int = int(os.getenv("CONVERSION_TIMEOUT_SECONDS", "60"))
+    MIN_FILES_FOR_MERGE: int = int(os.getenv("MIN_FILES_FOR_MERGE", "2"))
 
     TEMP_ROOT: Path = Path(os.getenv("TEMP_ROOT", str(Path(tempfile.gettempdir()) / "ilovepdf-clone")))
 

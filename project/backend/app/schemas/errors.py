@@ -42,3 +42,18 @@ class ConversionFailedError(ConversionError):
 class MissingConversionToolError(ConversionError):
     code = "MISSING_CONVERSION_TOOL"
     status_code = 503
+
+
+class TooFewFilesError(ConversionError):
+    code = "TOO_FEW_FILES"
+    status_code = 400
+
+
+class InvalidPageRangeError(ConversionError):
+    code = "INVALID_PAGE_RANGE"
+    status_code = 400
+
+
+class ZipCreationFailedError(ConversionError):
+    code = "ZIP_CREATION_FAILED"
+    status_code = 500

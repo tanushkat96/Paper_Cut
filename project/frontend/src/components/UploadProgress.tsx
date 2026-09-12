@@ -4,15 +4,20 @@ interface UploadProgressProps {
   fileName: string;
   state: ConversionState;
   uploadPercent: number;
+  processingLabel?: string;
 }
 
-const STATE_LABEL: Record<string, string> = {
-  UPLOADING: "Uploading…",
-  PROCESSING: "Converting…",
-};
-
-export function UploadProgress({ fileName, state, uploadPercent }: UploadProgressProps) {
+export function UploadProgress({
+  fileName,
+  state,
+  uploadPercent,
+  processingLabel = "Converting…",
+}: UploadProgressProps) {
   const percent = state === "PROCESSING" ? 100 : uploadPercent;
+  const stateLabel: Record<string, string> = {
+    UPLOADING: "Uploading…",
+    PROCESSING: processingLabel,
+  };
 
   return (
     <div className="status-panel">
@@ -20,7 +25,7 @@ export function UploadProgress({ fileName, state, uploadPercent }: UploadProgres
       <div className="progress-track">
         <div className="progress-fill" style={{ width: `${percent}%` }} />
       </div>
-      <p className="status-label">{STATE_LABEL[state] ?? ""}</p>
+      <p className="status-label">{stateLabel[state] ?? ""}</p>
     </div>
   );
 }

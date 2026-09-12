@@ -24,6 +24,16 @@ export function Home() {
           <span className="tool-card__title">PDF to Word</span>
           <p className="tool-card__desc">Pull the text out of a PDF into an editable Word file.</p>
         </Link>
+         <Link to="/merge-pdf" className="tool-card">
+          <span className="tool-card__label">multiple .pdf → one .pdf</span>
+          <span className="tool-card__title">Merge PDF</span>
+          <p className="tool-card__desc">Combine several PDFs into one, in the order you choose.</p>
+        </Link>
+        <Link to="/split-pdf" className="tool-card">
+          <span className="tool-card__label">.pdf → .zip of .pdf</span>
+          <span className="tool-card__title">Split PDF</span>
+          <p className="tool-card__desc">Break a PDF apart by page, or by the ranges you set.</p>
+        </Link>
       </div>
     </div>
   );

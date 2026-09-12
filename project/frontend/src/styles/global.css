@@ -288,3 +288,167 @@ h1 {
   outline: 2px solid var(--stamp);
   outline-offset: 2px;
 }
+
+/* Merge PDF — selected file list with reordering */
+
+.file-list {
+  border: 1px solid var(--paper-edge);
+  background: #fff;
+  margin-top: 20px;
+}
+
+.file-list__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--paper-edge);
+}
+
+.file-list__item:last-child {
+  border-bottom: none;
+}
+
+.file-list__index {
+  font-family: var(--font-display);
+  font-size: 14px;
+  color: var(--ink-soft);
+  width: 20px;
+  flex-shrink: 0;
+}
+
+.file-list__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.file-list__name {
+  font-size: 14px;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-list__size {
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin: 2px 0 0;
+}
+
+.file-list__controls {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.file-list__control-btn {
+  background: transparent;
+  border: 1px solid var(--paper-edge);
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--ink);
+  line-height: 1;
+}
+
+.file-list__control-btn:hover:not(:disabled) {
+  background: #f3efe5;
+}
+
+.file-list__control-btn:disabled {
+  color: var(--paper-edge);
+  cursor: not-allowed;
+}
+
+.file-list__control-btn--remove {
+  color: var(--stamp);
+  border-color: var(--stamp-soft);
+}
+
+.file-list__control-btn--remove:hover {
+  background: var(--stamp-soft);
+}
+
+.file-list__footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+}
+
+.file-list__count {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 12px;
+  color: var(--ink-soft);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.link-button:hover {
+  color: var(--stamp);
+}
+
+/* Split PDF — mode selector */
+
+.mode-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 20px 0;
+}
+
+.mode-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid var(--paper-edge);
+  padding: 14px 16px;
+  cursor: pointer;
+  background: #fff;
+}
+
+.mode-option--active {
+  border-color: var(--ink);
+}
+
+.mode-option input[type="radio"] {
+  margin-top: 3px;
+  accent-color: var(--stamp);
+}
+
+.mode-option__label {
+  font-size: 14px;
+  font-weight: 600;
+  display: block;
+}
+
+.mode-option__hint {
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin: 2px 0 0;
+}
+
+.range-input {
+  margin-top: 10px;
+  width: 100%;
+  font-family: var(--font-body);
+  font-size: 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--paper-edge);
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.range-input:focus {
+  outline: 2px solid var(--stamp);
+  outline-offset: -1px;
+}

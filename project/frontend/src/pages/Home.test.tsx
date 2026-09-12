@@ -14,5 +14,7 @@ describe("Home", () => {
 
     expect(screen.getByText("Word to PDF")).toBeInTheDocument();
     expect(screen.getByText("PDF to Word")).toBeInTheDocument();
+    expect(screen.getByText("Merge PDF")).toBeInTheDocument();
+    expect(screen.getByText("Split PDF")).toBeInTheDocument();
   });
 });

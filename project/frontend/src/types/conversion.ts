@@ -14,6 +14,9 @@ export type ErrorCode =
   | "CONVERSION_TIMEOUT"
   | "CONVERSION_FAILED"
   | "MISSING_CONVERSION_TOOL"
+  | "TOO_FEW_FILES"
+  | "INVALID_PAGE_RANGE"
+  | "ZIP_CREATION_FAILED"
   | "INTERNAL_ERROR";
 
 export interface ApiErrorBody {

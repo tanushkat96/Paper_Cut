@@ -32,6 +32,18 @@ export const ERROR_COPY: Record<string, { title: string; message: string }> = {
     title: "Service unavailable",
     message: "The service is temporarily unavailable. Please try again shortly.",
   },
+  TOO_FEW_FILES: {
+    title: "Add more files",
+    message: "Merging needs at least two PDF files.",
+  },
+  INVALID_PAGE_RANGE: {
+    title: "Invalid page range",
+    message: "Check the page range — it should look like 1-3,5,7-9 and fit within the document.",
+  },
+  ZIP_CREATION_FAILED: {
+    title: "Couldn't package the files",
+    message: "We couldn't build the download archive. Please try again.",
+  },
   INTERNAL_ERROR: {
     title: "Something went wrong",
     message: "Something went wrong on our end. Please try again.",
