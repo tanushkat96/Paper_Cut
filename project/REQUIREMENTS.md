@@ -1,13 +1,17 @@
 # iLovePDF Clone — Requirements
 
-## 1. Module 1 Scope
+## 1. Module 1 
 
 - Word → PDF
 - PDF → Word
 
-**Module 2 (implemented):**
+## Module 2 
 - Merge PDF
 - Split PDF
+
+## Module 3 
+- Compress PDF
+- Organize PDF
 
 ## 2. Functional Requirements
 
@@ -56,6 +60,83 @@ The system must:
 - Package all generated PDFs into a single ZIP archive for download
 - Delete all temporary files (uploaded PDF, generated PDFs, and ZIP) after processing, including on failure
 
+### 2.5 Compress PDF
+
+The system must:
+
+Accept a single .pdf file
+
+Reject unsupported file types (UNSUPPORTED_FILE_TYPE)
+
+Validate maximum file size (FILE_TOO_LARGE)
+
+Reject unreadable or corrupted PDFs (CORRUPTED_DOCUMENT)
+
+Reject empty/zero-page PDFs (EMPTY_DOCUMENT)
+
+Support three compression levels:
+
+low
+
+recommended
+
+extreme
+
+Use PyMuPDF-based PDF optimization for compression
+
+Generate compressed.pdf
+
+Provide the compressed PDF for download
+
+Return the original file size and compressed file size in the response headers
+
+Return the calculated reduction percentage in the X-Reduction-Percent response header
+
+Ensure a failed compression request does not crash the backend
+
+Delete temporary files after processing, including on failure
+
+Compression configuration:
+
+low: lighter optimization
+
+recommended: default compression level
+
+extreme: stronger PDF optimization
+
+The default level is configurable through DEFAULT_COMPRESSION_LEVEL and defaults to recommended.
+
+Known behavior: compression is optimization-based and does not guarantee that every PDF will become smaller. For PDFs that are already optimized, the resulting file may have little or no size reduction.
+
+### 2.6 Organize PDF
+
+The system must:
+
+- Accept a single .pdf file
+- Reject unsupported file types (UNSUPPORTED_FILE_TYPE)
+- Validate maximum file size (FILE_TOO_LARGE)
+- Reject unreadable or corrupted PDFs (CORRUPTED_DOCUMENT)
+- Provide the PDF page count before organization
+- Accept a page specification containing page numbers and optional rotation
+- Use zero-based page indexes internally
+- Allow pages to be reordered by changing their order in the page specification
+- Allow pages to be removed by omitting them from the page specification
+- Allow individual pages to be rotated by 0, 90, 180, or 270 degrees
+- Reject invalid page specifications with INVALID_PAGE_SPEC
+- Generate organized.pdf
+- Provide the organized PDF for download
+- Delete temporary files after processing, including on failure
+
+A valid page specification has the following logical structure:
+
+[
+  {"page": 2, "rotation": 0},
+  {"page": 0, "rotation": 90},
+  {"page": 1, "rotation": 0}
+]
+
+Here, page is zero-based. The order determines the output page order. A page not included in the list is removed from the output.
+
 ## 3. Frontend Requirements
 
 **Landing Page**
@@ -91,6 +172,37 @@ The system must:
 - Page-range text input shown only in custom mode, with format guidance (e.g. `1-3,5,7-9`)
 - Split button, upload/processing indicator, ZIP download on success, error state — same conventions as the Conversion Page
 
+**Compress PDF Page**
+
+- Single PDF upload
+- Compression level selector:
+ - Low
+ - Recommended
+ - Extreme
+- Recommended level selected by default
+- Upload progress indicator
+- Processing indicator
+- Display original file size after processing
+- Display compressed file size after processing
+- Display percentage reduction after processing
+- Download button for the compressed PDF
+- Error state with a mapped, user-friendly error message
+- "Try Again" behavior that resets the tool state
+
+**Organize PDF Page**
+
+- Single PDF upload
+- Load and display the PDF page count before organization
+- Display pages in an order that can be changed by the user
+- Reordering controls
+- Remove-page control
+- Page rotation control
+- Clear visual indication of the available organize actions
+- Organize button
+- Upload/processing indicator
+- Success/download state
+- Error state with a mapped, user-friendly error message
+- "Try Again" behavior that resets the tool state
 
 ## 4. Backend Requirements
 
@@ -100,6 +212,9 @@ POST /api/v1/convert/word-to-pdf
 POST /api/v1/convert/pdf-to-word
 POST /api/v1/pdf/merge
 POST /api/v1/pdf/split
+POST /api/v1/pdf/compress
+POST /api/v1/pdf/organize/info
+POST /api/v1/pdf/organize
 ```
 
 The backend must:
@@ -111,6 +226,11 @@ The backend must:
 - Never crash the server process on a conversion failure
 - Clean temporary files after every request, success or failure
 - For Merge specifically: validate all files before merging any of them, and reject the entire request if any file is invalid — never produce a partial merge
+- For Organize specifically: validate every page specification entry against the document page count before producing the output
+- Return compression metadata through response headers:
+ - X-Original-Size
+ - X-Compressed-Size
+ - X-Reduction-Percent
 
 ## 5. File Requirements
 
@@ -120,12 +240,15 @@ The backend must:
 
 **Minimum files to merge:** 2 (`MIN_FILES_FOR_MERGE`, configurable)
 
+**Default compression level:** recommended(`DEFAULT_COMPRESSION_LEVEL`, configurable) 
 **Allowed input formats:**
 ```text
 Word → PDF:  .doc, .docx
 PDF → Word:  .pdf
 Merge PDF:   .pdf
 Split PDF:   .pdf 
+Compress PDF: .pdf
+Organize PDF: .pdf
 ```
 
 **Output formats:**
@@ -134,6 +257,8 @@ Word → PDF:  .pdf
 PDF → Word:  .docx
 Merge PDF:   .pdf
 Split PDF:   .zip
+Compress PDF:  .pdf
+Organize PDF:  .pdf
 ```
 
 ## 6. Non-Functional Requirements
@@ -168,42 +293,5 @@ Split PDF:   .zip
 - Watermarking
 - Public rate limiting (stubbed behind a feature flag, not enabled by default)
 
-These are added incrementally, one module at a time, after Module 1 is stable.
+These are added incrementally, one module at a time, after Module 3 is stable.
 
-## 8. Definition of Done
-
-Module 1 is complete when:
-
-- [ ] User can upload DOCX
-- [ ] DOCX converts successfully to PDF
-- [ ] User can download PDF
-- [ ] User can upload PDF
-- [ ] Text-based PDF converts to DOCX
-- [ ] User can download DOCX
-- [ ] Invalid file types are rejected with `UNSUPPORTED_FILE_TYPE`
-- [ ] Oversized files are rejected with `FILE_TOO_LARGE`
-- [ ] Scanned/no-text PDFs are rejected with `NO_TEXT_LAYER` (not silently converted)
-- [ ] Conversion timeouts return `CONVERSION_TIMEOUT` and do not hang the request
-- [ ] Conversion failures are handled and return `CONVERSION_FAILED` without crashing the server
-- [ ] Temporary files are cleaned up on both success and failure paths
-- [ ] LibreOffice calls are serialized (no concurrent-invocation profile conflicts)
-- [ ] API tests exist for all documented error codes, not just the happy path
-- [ ] Frontend tests exist for IDLE, UPLOADING, PROCESSING, COMPLETED, and ERROR states
-- [ ] Application runs through Docker (single `docker-compose up`)
-- [ ] README contains setup instructions, environment variables, and the stated PDF→Word fidelity limitation
-
-**Module 2** is complete when:
-
-- [ ] User can select 2+ PDFs, reorder them, and remove individual files before merging
-- [ ] Merge produces a single PDF with pages in exactly the selected order
-- [ ] Merging with fewer than `MIN_FILES_FOR_MERGE` files is rejected with `TOO_FEW_FILES`
-- [ ] A corrupted/unreadable file in a merge request is rejected with `CORRUPTED_DOCUMENT` and produces no partial output
-- [ ] User can upload a single PDF and split it with the default "every page" behavior
-- [ ] User can optionally specify custom page ranges (e.g. `1-3,5,7-9`) and get one PDF per range, in the requested order
-- [ ] Malformed or out-of-bounds page ranges are rejected with `INVALID_PAGE_RANGE`
-- [ ] Split output is delivered as a single ZIP archive containing correctly-paginated PDFs
-- [ ] All temporary files (inputs, intermediate PDFs, and the ZIP) are cleaned up on both success and failure paths
-- [ ] Existing Word→PDF and PDF→Word routes continue to work unmodified
-- [ ] Backend tests cover: 2-file merge, 3-file merge with order verification, too-few-files rejection, corrupted-file rejection, non-PDF rejection; single-page split, multi-page split, custom-range split, out-of-bounds range, malformed range, corrupted-file rejection, non-PDF rejection
-- [ ] Frontend tests cover the Merge PDF and Split PDF pages rendering their initial state
-- [ ] No new runtime dependencies were required (PyMuPDF, python-docx, and stdlib `zipfile` were already present)

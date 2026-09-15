@@ -10,12 +10,15 @@ Landing Page
  |
  ├── Word to PDF
  |
- └── PDF to Word
+ ├── PDF to Word
  |
  ├── Merge PDF
  |
- └── Split PDF
- 
+ ├── Split PDF
+ |
+ ├── Compress PDF
+ |
+ └── Organize PDF
 ```
 
 ---
@@ -143,7 +146,146 @@ Validate PDF (extension, MIME, size)
                           ▼
                    Cleanup temp workspace (always, even on error)
 ```
-## 4. Merge PDF Flow
+
+## 4. Compress PDF Flow
+
+```text
+User
+ |
+ ▼
+Compress PDF page
+ |
+ ▼
+Select / Drag & Drop a single PDF
+ |
+ ▼
+Choose compression level
+ |
+ ├── low
+ ├── recommended
+ └── extreme
+ |
+ ▼
+User clicks "Compress PDF"
+ |
+ ▼
+Upload file
+ |
+ ▼
+Backend API
+ |
+ ▼
+Validate PDF (extension, MIME, size)
+ |
+ ├── Invalid → Error response
+ |
+ └── Valid
+        |
+        ▼
+     Create UUID-named temp workspace
+        |
+        ▼
+     PyMuPDF optimization (level-aware)
+        |
+        ├── Failed → CONVERSION_FAILED
+        |
+        └── Success
+              |
+              ▼
+         Compute original/compressed sizes and reduction percentage
+              |
+              ▼
+         Return compressed.pdf with response headers
+              |
+              ▼
+         Download button
+              |
+              ▼
+         User downloads compressed PDF
+              |
+              ▼
+         Cleanup temp workspace (always, even on error)
+```
+
+React → FastAPI → validation → PyMuPDF optimization → response headers → cleanup
+
+---
+
+## 5. Organize PDF Flow
+
+```text
+User
+ |
+ ▼
+Organize PDF page
+ |
+ ▼
+Select / Drag & Drop a single PDF
+ |
+ ▼
+Frontend requests page count via /api/v1/pdf/organize/info
+ |
+ ▼
+Render page list editor
+ |
+ ├── Reorder pages
+ ├── Remove pages
+ └── Rotate pages
+ |
+ ▼
+User clicks "Apply changes"
+ |
+ ▼
+Upload file + page specification (JSON array)
+ |
+ ▼
+Backend API
+ |
+ ▼
+Validate PDF (extension, MIME, size)
+ |
+ ├── Invalid → Error response
+ |
+ └── Valid
+        |
+        ▼
+     Create UUID-named temp workspace
+        |
+        ▼
+     Parse and validate page specification
+        |
+        ├── Malformed / invalid page references → INVALID_PAGE_SPEC
+        |
+        └── Valid spec
+              |
+              ▼
+           PyMuPDF: reorder + remove + rotate pages
+              |
+              ├── Empty final document → EMPTY_DOCUMENT
+              |
+              └── Success
+                    |
+                    ▼
+               organized.pdf generated
+                    |
+                    ▼
+               Return organized.pdf
+                    |
+                    ▼
+               Download button
+                    |
+                    ▼
+               User downloads organized PDF
+                    |
+                    ▼
+               Cleanup temp workspace (always, even on error)
+```
+
+React → FastAPI → validation → page-spec parsing → PyMuPDF reorganize → download → cleanup
+
+---
+
+## 6. Merge PDF Flow
 
 ```text
 User
@@ -210,7 +352,7 @@ React → FastAPI → validation → temporary workspace → PyMuPDF → merged 
 
 ---
 
-## 5. Split PDF Flow
+## 7. Split PDF Flow
 
 ```text
 User
@@ -253,7 +395,7 @@ Validate PDF (extension, MIME, size)
               ▼
         Determine ranges:
           - no page_ranges → one range per page
-          - page_ranges given → parse & validate (see Section 9)
+          - page_ranges given → parse & validate against the PDF page count
               |
               ├── Malformed / out-of-bounds → INVALID_PAGE_RANGE
               |
@@ -292,7 +434,7 @@ React → FastAPI → validation → PyMuPDF → individual PDFs → ZIP → res
 
 ---
 
-## 6. Frontend State Flow
+## 8. Frontend State Flow
 
 ```text
 IDLE
@@ -324,13 +466,14 @@ PROCESSING
     └──── ERROR ──── (Try Again → back to IDLE)
 ```
 
-The UI must map each backend error `code` to a distinct, user-readable message — not a single generic "something went wrong" (see Section 7 for the full code list and suggested copy).
+The UI must map each backend error `code` to a distinct, user-readable message — not a single generic "something went wrong" (see Section 11 for the full code list and suggested copy).
 
 ---
 
-## 7. Word → PDF API
+## 9. Word → PDF API
 
 ### Request
+
 ```http
 POST /api/v1/convert/word-to-pdf
 Content-Type: multipart/form-data
@@ -339,12 +482,14 @@ file = document.docx
 ```
 
 ### Success
+
 ```http
 200 OK
 Content-Type: application/pdf
 ```
 
 ### Failure
+
 ```json
 {
   "success": false,
@@ -357,9 +502,10 @@ Content-Type: application/pdf
 
 ---
 
-## 8. PDF → Word API
+## 10. PDF → Word API
 
 ### Request
+
 ```http
 POST /api/v1/convert/pdf-to-word
 Content-Type: multipart/form-data
@@ -368,12 +514,14 @@ file = document.pdf
 ```
 
 ### Success
+
 ```http
 200 OK
 Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document
 ```
 
 ### Failure (e.g. scanned PDF)
+
 ```json
 {
   "success": false,
@@ -386,7 +534,7 @@ Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.doc
 
 ---
 
-## 9. File Validation Flow & Error Codes
+## 11. File Validation Flow & Error Codes
 
 ```text
 File received
@@ -408,19 +556,19 @@ Content validation (readable, not corrupted)
      └── Passed → Process
 ```
 
-| Failure point | Error code | Example user-facing message |
-|---|---|---|
-| Extension check | `UNSUPPORTED_FILE_TYPE` | "This file type isn't supported. Please upload a .doc, .docx, or .pdf file." |
-| Size check | `FILE_TOO_LARGE` | "This file exceeds the 25 MB limit." |
-| Content validation | `CORRUPTED_DOCUMENT` | "This file couldn't be read. It may be corrupted." |
-| PDF text extraction | `NO_TEXT_LAYER` | "This PDF has no selectable text (likely scanned). OCR isn't supported yet." |
-| Conversion engine | `CONVERSION_TIMEOUT` | "This is taking longer than expected. Please try again or use a smaller file." |
-| Conversion engine | `CONVERSION_FAILED` | "Conversion failed. Please try again." |
-| Server dependency missing | `MISSING_CONVERSION_TOOL` | "The service is temporarily unavailable. Please try again shortly " |
-| Merge — not enough files | `TOO_FEW_FILES` | "Merging needs at least two PDF files." |
-| Split — bad range string | `INVALID_PAGE_RANGE` | "Check the page range — it should look like 1-3,5,7-9 and fit within the document." |
-| Split — archive step failed | `ZIP_CREATION_FAILED` | "We couldn't build the download archive. Please try again." |
-| Anything unexpected | `INTERNAL_ERROR` | "Something went wrong on our end." |
+| Failure point               | Error code                | Example user-facing message                                                         |
+| --------------------------- | ------------------------- | ----------------------------------------------------------------------------------- |
+| Extension check             | `UNSUPPORTED_FILE_TYPE`   | "This file type isn't supported. Please upload a .doc, .docx, or .pdf file."        |
+| Size check                  | `FILE_TOO_LARGE`          | "This file exceeds the 25 MB limit."                                                |
+| Content validation          | `CORRUPTED_DOCUMENT`      | "This file couldn't be read. It may be corrupted."                                  |
+| PDF text extraction         | `NO_TEXT_LAYER`           | "This PDF has no selectable text (likely scanned). OCR isn't supported yet."        |
+| Conversion engine           | `CONVERSION_TIMEOUT`      | "This is taking longer than expected. Please try again or use a smaller file."      |
+| Conversion engine           | `CONVERSION_FAILED`       | "Conversion failed. Please try again."                                              |
+| Server dependency missing   | `MISSING_CONVERSION_TOOL` | "The service is temporarily unavailable. Please try again shortly "                 |
+| Merge — not enough files    | `TOO_FEW_FILES`           | "Merging needs at least two PDF files."                                             |
+| Split — bad range string    | `INVALID_PAGE_RANGE`      | "Check the page range — it should look like 1-3,5,7-9 and fit within the document." |
+| Split — archive step failed | `ZIP_CREATION_FAILED`     | "We couldn't build the download archive. Please try again."                         |
+| Anything unexpected         | `INTERNAL_ERROR`          | "Something went wrong on our end."                                                  |
 
 Limits are configurable via environment variables:
 
@@ -432,7 +580,7 @@ MIN_FILES_FOR_MERGE=2
 
 ---
 
-## 10. Cleanup Flow
+## 12. Cleanup Flow
 
 ```text
 Request starts
@@ -457,9 +605,9 @@ Because each request has its own workspace directory, cleanup for one request ne
 
 ---
 
-## 11. Future User Flow
+## 13. Future User Flow
 
-After Module 2 is stable:
+After Module 3 is stable:
 
 ```text
 Home
@@ -469,6 +617,7 @@ Home
  ├── Merge PDF
  ├── Split PDF
  ├── Compress PDF
+ ├── Organize PDF
  ├── PDF to JPG
  ├── JPG to PDF
  ├── Rotate PDF

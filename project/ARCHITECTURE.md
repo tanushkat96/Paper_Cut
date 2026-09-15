@@ -4,15 +4,22 @@
 
 A web-based PDF utility platform inspired by tools such as iLovePDF, built incrementally with each PDF operation as an independent module.
 
-**Module 1 scope:**
+**Module 1 scope (implemented):**
+
 - Word → PDF
 - PDF → Word
 
 **Module 2 scope (implemented):**
+
 - Merge PDF
 - Split PDF
 
-Future modules are added only after Module 1 is stable.
+**Module 3 scope (implemented):**
+
+- Compress PDF
+- Organize PDF
+
+The project currently includes all three modules and uses a **modular monolithic architecture** initially. New modules are added incrementally without introducing unnecessary infrastructure complexity.
 
 ---
 
@@ -35,6 +42,10 @@ Backend
    |
    +---- Split PDF Service
    |
+   +---- Compress PDF Service
+   |
+   +---- Organize PDF Service
+   |
    +---- File Service
    |
    +---- Validation / Cleanup
@@ -48,38 +59,35 @@ A monolithic backend is preferred initially — it reduces infrastructure comple
 
 ## 3. High-Level Architecture
 
-```text- 
-         ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
--        │ Word → PDF   │ │ PDF → Word   │ │ File Service │
--        │   Service    │ │   Service    │ │              │
--        └──────┬───────┘ └──────┬───────┘ └──────────────┘
--               │                │
--               ▼                ▼
--        ┌──────────────┐ ┌──────────────┐
--        │ LibreOffice  │ │   PyMuPDF    │
--        │   (pooled)   │ │ python-docx  │
--        └──────────────┘ └──────────────┘
-+        ┌──────────────┐ ┌──────────────┐
-+        │ Word → PDF   │ │ PDF → Word   │
-+        │   Service    │ │   Service    │
-+        └──────┬───────┘ └──────┬───────┘
-+               │                │
-+               ▼                ▼
-+        ┌──────────────┐ ┌──────────────┐
-+        │ LibreOffice  │ │   PyMuPDF    │
-+        │   (pooled)   │ │ python-docx  │
-+        └──────────────┘ └──────────────┘
-+        ┌──────────────┐ ┌──────────────┐
-+        │ Merge PDF    │ │ Split PDF    │
-+        │   Service    │ │   Service    │
-+        └──────┬───────┘ └──────┬───────┘
-+               │                │
-+               └───────┬────────┘
-+                       ▼
-+                 ┌──────────────┐
-+                 │   PyMuPDF    │
-+                 │   zipfile    │
-+                 └──────────────┘
+```text
+                    ┌──────────────────────┐
+                    │      Frontend        │
+                    │ React + TypeScript   │
+                    │       + Vite         │
+                    └──────────┬───────────┘
+                               │
+                          HTTP / REST
+                               │
+                    ┌──────────▼───────────┐
+                    │     FastAPI Backend  │
+                    └──────────┬───────────┘
+                               │
+          ┌────────────────────┼────────────────────┐
+          │                    │                    │
+          ▼                    ▼                    ▼
+   Conversion Services    PDF Services        Common Services
+          │                    │                    │
+    ┌─────┴─────┐       ┌──────┼──────────┐    ┌────┴─────────┐
+    │           │       │      │          │    │              │
+ Word → PDF  PDF → Word Merge  Split   Compress Organize  Validation
+    │           │       │      │          │       │            │
+ LibreOffice PyMuPDF   PyMuPDF + zipfile  PyMuPDF       File/Cleanup
+    │           │       │      │          │       │            │
+    └───────────┴───────┴──────┴──────────┴───────┴────────────┘
+                               │
+                         Generated File
+                               │
+                        Download Response
 ```
 
 ---
@@ -93,15 +101,19 @@ frontend/
 │   ├── components/
 │   │   ├── FileUploader.tsx
 │   │   ├── UploadProgress.tsx
-│   │   └── DownloadButton.tsx
+│   │   ├── DownloadButton.tsx
+│   │   ├── FileListEditor.tsx
+│   │   ├── PageListEditor.tsx
+│   │   └── ConversionPage.tsx
 │   │
 │   ├── pages/
 │   │   ├── Home.tsx
 │   │   ├── WordToPdf.tsx
 │   │   ├── PdfToWord.tsx
-|   |   ├── MergePdf.tsx
-│   │   └── SplitPdf.tsx
-
+│   │   ├── MergePdf.tsx
+│   │   ├── SplitPdf.tsx
+│   │   ├── CompressPdf.tsx
+│   │   └── OrganizePdf.tsx
 │   │
 │   ├── services/
 │   │   └── api.ts
@@ -115,14 +127,21 @@ frontend/
 ```
 
 ### Frontend responsibilities
+
 - File selection, drag and drop
 - Client-side file validation (extension, size)
 - Uploading with progress display
-- Conversion status polling/handling
+- Processing state handling
+- Compression-level selection
+- Display of compression statistics
+- PDF page organization controls
+- Page reordering
+- Page removal
+- Page rotation
 - Error display
 - Download of result
 
-The frontend must never perform document conversion itself.
+The frontend must never perform document conversion or PDF processing itself.
 
 ---
 
@@ -137,42 +156,56 @@ app/
 │   └── routes/
 │       ├── word_to_pdf.py
 │       ├── pdf_to_word.py
-|       ├── merge_pdf.py
-│       └── split_pdf.py
+│       ├── merge_pdf.py
+│       ├── split_pdf.py
+│       ├── compress_pdf.py
+│       └── organize_pdf.py
 │
 ├── services/
-│       ├── word_to_pdf.py
-│       ├── pdf_to_word.py
-|       ├── merge_pdf.py
-│       ├── split_pdf.py
-|       └── file_service.py
+│   ├── word_to_pdf.py
+│   ├── pdf_to_word.py
+│   ├── merge_pdf.py
+│   ├── split_pdf.py
+│   ├── compress_pdf.py
+│   ├── organize_pdf.py
+│   └── file_service.py
 │
 ├── schemas/
-│   └── conversion.py
+│   ├── conversion.py
+│   ├── errors.py
+│   └── __init__.py
 │
 ├── core/
 │   ├── config.py
 │   └── libreoffice_pool.py
 │
 └── utils/
+    ├── cleanup.py
     ├── file_validation.py
-    └── cleanup.py
+    ├── page_ranges.py
+    ├── page_spec.py
+    └── __init__.py
 ```
 
 ### API Layer
+
 - Receives HTTP requests
 - Validates request parameters
+- Validates uploaded files
 - Calls services
 - Returns responses
 
 ### Service Layer
+
 - Document conversion
 - File processing
 - Conversion-specific logic
 
 ### Utility Layer
+
 - File validation
 - Temporary directory management
+- Validates uploaded files
 - Cleanup
 - Common helpers
 
@@ -252,13 +285,14 @@ Text-layer check
 Temporary files deleted
 ```
 
-Scanned PDFs requiring OCR are a later enhancement — **not silently produced as an empty document.** If a PDF has no extractable text layer, the API must return a distinct `NO_TEXT_LAYER` error (see Section 10) rather than a blank or garbled DOCX.
+Scanned PDFs requiring OCR are a later enhancement — **not silently produced as an empty document.** If a PDF has no extractable text layer, the API must return a distinct `NO_TEXT_LAYER` error (see the error table in Section 14) rather than a blank or garbled DOCX.
 
 ### 7.1 Fidelity limitation (documented, not fixed in v1)
 
 PyMuPDF extraction + python-docx reconstruction preserves text content but **not** layout: tables, multi-column text, images, and most font/style fidelity are lost. This is a known, accepted limitation for Module 1 and must be stated in the README and surfaced in the UI (e.g. a note near the PDF → Word upload control).
 
 ---
+
 ## 8. Merge PDF
 
 Merges two or more PDF files into a single PDF while preserving the order selected by the user.
@@ -283,13 +317,15 @@ Download response
      |
      ▼
 Temporary files deleted
+```
+
 ---
 
 ## 9. Split PDF
 
 Splits a PDF into multiple PDF files. The initial implementation supports splitting every page and custom page ranges.
 
-```text
+````text
 PDF
  |
  ▼
@@ -322,7 +358,131 @@ Temporary files deleted
 
 ---
 
-## 10. File Lifecycle
+## 10. Compress PDF
+Compresses a PDF using PyMuPDF optimization.
+
+PDF
+ |
+ ▼
+File validation
+ |
+ ▼
+Request-scoped UUID workspace
+ |
+ ▼
+Compression level selection
+ |
+ ├── low
+ ├── recommended
+ └── extreme
+ |
+ ▼
+PyMuPDF PDF optimization
+ |
+ ▼
+compressed.pdf
+ |
+ ▼
+Calculate:
+- Original size
+- Compressed size
+- Reduction percentage
+ |
+ ▼
+Download response
+ |
+ ▼
+Temporary files deleted
+
+### 10.1 Compression levels
+
+The backend supports three levels:
+
+Level	Purpose
+low	Lighter PDF optimization
+recommended	Default balanced optimization
+extreme	Stronger PDF optimization
+
+The default level is controlled by:
+
+`DEFAULT_COMPRESSION_LEVEL=recommended`
+
+### 10.2 Compression response metadata
+The compression endpoint returns the generated PDF and exposes:
+
+- X-Original-Size
+- X-Compressed-Size
+- X-Reduction-Percent
+
+The percentage represents the calculated size reduction.
+
+Compression is optimization-based and does not guarantee that every PDF will become smaller. A PDF that is already optimized may show little or no reduction.
+
+## 11. Organize PDF
+
+Organizes PDF pages by allowing page reordering, removal, and rotation.
+
+PDF
+ |
+ ▼
+File validation
+ |
+ ▼
+Get page count
+ |
+ ▼
+User organizes pages
+ |
+ ├── Reorder pages
+ ├── Remove pages
+ └── Rotate pages
+        |
+        ▼
+Page specification validation
+        |
+        ▼
+PyMuPDF insert_pdf()
+        |
+        ▼
+Apply page rotation
+        |
+        ▼
+organized.pdf
+        |
+        ▼
+Download response
+        |
+        ▼
+Temporary files deleted
+
+### 11.1 Page specification
+
+The backend accepts a page specification containing:
+
+[
+  {"page": 2, "rotation": 0},
+  {"page": 0, "rotation": 90},
+  {"page": 1, "rotation": 0}
+]
+page uses a zero-based index internally.
+The order of entries determines the output order.
+A page omitted from the specification is not included in the output.
+rotation must be 0, 90, 180, or 270.
+Invalid page specifications return INVALID_PAGE_SPEC.
+
+### 11.2 Organize information endpoint
+
+Before organization, the frontend can request the PDF page count through:
+
+POST /api/v1/pdf/organize/info
+
+This allows the frontend to build the page organization interface using the actual number of pages in the uploaded document.
+
+### 11.3 Organize response metadata
+
+The organize flow returns a download response with a generated PDF file and does not provide any extra header metadata beyond the standard attachment filename.
+
+## 12. File Lifecycle
 
 Uploaded files are always temporary and request-scoped.
 
@@ -340,15 +500,15 @@ Generate output
 Return output
   ↓
 Delete workspace directory (input + output)
-```
+````
 
 - Each request gets its own workspace directory (e.g. `/tmp/conversions/<uuid>/`) — never a shared temp path — to avoid collisions and races between concurrent requests' cleanup.
 - Cleanup runs in a `finally` block so it executes on both success and failure paths.
-- No uploaded document is stored permanently in Module 1.
+- No uploaded document is stored permanently in the application.
 
 ---
 
-## 11. Security Considerations
+## 13. Security Considerations
 
 - Restrict allowed file extensions (`.doc`, `.docx`, `.pdf` only)
 - Validate MIME types where possible, not just extension
@@ -359,27 +519,30 @@ Delete workspace directory (input + output)
 - Sanitize any filename shown back to the user (e.g. in the download header)
 - Delete temporary files after processing, including on failure
 - Prevent path traversal in any user-supplied filename
-- Apply request rate limiting when deployed publicly (see Section 10.1 for Module 1 decision)
+- Apply request rate limiting when deployed publicly, especially when the service is exposed to external users
 
 ---
 
-## 12. Error Handling
+## 14. Error Handling
 
 The API returns clear, machine-readable errors for:
 
-| Code | Meaning |
-|---|---|
-| `UNSUPPORTED_FILE_TYPE` | Extension/MIME not allowed |
-| `FILE_TOO_LARGE` | Exceeds `MAX_FILE_SIZE_MB` |
-| `CORRUPTED_DOCUMENT` | File unreadable by the conversion engine |
-| `NO_TEXT_LAYER` | PDF → Word: no extractable text (likely scanned) |
-| `CONVERSION_TIMEOUT` | Conversion exceeded `CONVERSION_TIMEOUT_SECONDS` |
-| `CONVERSION_FAILED` | Generic conversion failure |
-| `MISSING_CONVERSION_TOOL` | LibreOffice/dependency unavailable server-side |
-| `TOO_FEW_FILES` | Merge PDF: fewer than 2 files supplied |
-| `INVALID_PAGE_RANGE` | Split PDF: malformed or out-of-bounds page range |
-| `ZIP_CREATION_FAILED` | Split PDF: failed to create output archive |
-| `INTERNAL_ERROR` | Unexpected server error |
+| Code                        | Meaning                                          |
+| --------------------------- | ------------------------------------------------ |
+| `UNSUPPORTED_FILE_TYPE`     | Extension/MIME not allowed                       |
+| `FILE_TOO_LARGE`            | Exceeds `MAX_FILE_SIZE_MB`                       |
+| `CORRUPTED_DOCUMENT`        | File unreadable by the conversion engine         |
+| `NO_TEXT_LAYER`             | PDF → Word: no extractable text (likely scanned) |
+| `CONVERSION_TIMEOUT`        | Conversion exceeded `CONVERSION_TIMEOUT_SECONDS` |
+| `CONVERSION_FAILED`         | Generic conversion failure                       |
+| `MISSING_CONVERSION_TOOL`   | LibreOffice/dependency unavailable server-side   |
+| `TOO_FEW_FILES`             | Merge PDF: fewer than 2 files supplied           |
+| `INVALID_PAGE_RANGE`        | Split PDF: malformed or out-of-bounds page range |
+| `ZIP_CREATION_FAILED`       | Split PDF: failed to create output archive       |
+| `INVALID_COMPRESSION_LEVEL` | Compression level is not low/recommended/extreme |
+| `EMPTY_DOCUMENT`            | PDF contains zero pages                          |
+| `INVALID_PAGE_SPEC`         | Organize PDF page specification is invalid       |
+| `INTERNAL_ERROR`            | Unexpected server error                          |
 
 Response shape:
 
@@ -393,28 +556,22 @@ Response shape:
 }
 ```
 
-A failed conversion must never crash the backend process — all conversion calls are wrapped and isolated per request.
+## 15. Concurrency & Isolation Summary
 
-### 12.1 Rate limiting decision for Module 1
-
-Rate limiting is **out of scope for the Module 1 Definition of Done**, but a basic IP-based limiter (e.g. `slowapi`) should be stubbed in `core/config.py` behind a feature flag, so it can be switched on before any public deployment without a code change.
-
----
-
-## 13. Concurrency & Isolation Summary
-
-| Concern | Module 1 approach |
-|---|---|
-| LibreOffice concurrency | Single-concurrency queue (semaphore) |
-| Temp file collisions | UUID-named per-request workspace dirs |
-| Long-running conversions | Hard timeout, default 60s |
-| Crash isolation | Conversion errors caught per-request, never propagate to process crash |
-| Merge PDF concurrency | Request-scoped workspace; PyMuPDF processing |
-| Split PDF concurrency | Request-scoped workspace; PyMuPDF + ZIP processing |
+| Concern                  | Current approach                                                       |
+| ------------------------ | ---------------------------------------------------------------------- |
+| LibreOffice concurrency  | Single-concurrency queue (semaphore)                                   |
+| Temp file collisions     | UUID-named per-request workspace dirs                                  |
+| Long-running conversions | Hard timeout, default 60s                                              |
+| Crash isolation          | Conversion errors caught per-request, never propagate to process crash |
+| Merge PDF concurrency    | Request-scoped workspace; PyMuPDF processing                           |
+| Split PDF concurrency    | Request-scoped workspace; PyMuPDF + ZIP processing                     |
+| Compress PDF             | Request-scoped workspace + PyMuPDF                                     |
+| Organize PDF             | Request-scoped workspace + PyMuPDF                                     |
 
 ---
 
-## 14. Future Architecture
+## 16. Future Architecture
 
 When processing volume increases, PDF processing and conversion can move to background workers.
 
@@ -434,6 +591,8 @@ Worker
    ├── PyMuPDF
    ├── Merge PDF
    ├── Split PDF
+   ├── Compress PDF
+   ├── Organize PDF
    └── OCR
    |
    ▼

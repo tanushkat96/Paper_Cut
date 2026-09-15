@@ -15,14 +15,19 @@ A minimal PDF utility web app supporting Word → PDF and PDF → Word conversio
 - **Word → PDF:** LibreOffice (headless), single-concurrency queue
 - **PDF → Word:** PyMuPDF (text extraction) + python-docx (generation)
 - **Merge / Split PDF:** PyMuPDF (page-level operations) + stdlib `zipfile` for Split's archive
+- **Compress PDF:** PyMuPDF structural PDF optimization
+- **Organize PDF:** PyMuPDF page-level operations
 
-## Known limitations (Module 1)
+
+## Known limitations
 
 - PDF → Word only supports **text-based PDFs**. Scanned/image-only PDFs return a `NO_TEXT_LAYER` error — OCR is a future module.
 - PDF → Word does **not** preserve tables, multi-column layout, images, or most font/style fidelity — text content only.
+- PDF compression currently performs structural optimization and does not resample embedded images. Some PDFs may therefore show little or no size reduction.
+- Organize PDF uses a page specification supplied by the frontend and requires at least one page in the final document.
 - No authentication, accounts, history, or billing.
-- Word→PDF conversions are serialized server-side (one at a time) to avoid LibreOffice profile-lock issues; this is a throughput ceiling by design until background workers are introduced. Merge and Split have no such restriction.
-- Split's custom page ranges do not deduplicate overlapping ranges — each requested range produces its own output file, by design (see `REQUIREMENTS.md`, Section 2.4).
+- Word → PDF conversions are serialized server-side (one at a time) to avoid LibreOffice profile-lock issues. Merge, Split, Compress, and Organize do not require the LibreOffice queue.
+- Uploaded files are stored temporarily in request-scoped workspaces and cleaned after processing.
 
 ## Environment variables
 
@@ -30,6 +35,7 @@ A minimal PDF utility web app supporting Word → PDF and PDF → Word conversio
 MAX_FILE_SIZE_MB=25
 CONVERSION_TIMEOUT_SECONDS=60
 MIN_FILES_FOR_MERGE=2
+DEFAULT_COMPRESSION_LEVEL=recommended
 ```
 
 ## Getting started
@@ -70,6 +76,9 @@ POST /api/v1/convert/word-to-pdf
 POST /api/v1/convert/pdf-to-word
 POST /api/v1/pdf/merge
 POST /api/v1/pdf/split
+POST /api/v1/pdf/compress
+POST /api/v1/pdf/organize/info
+POST /api/v1/pdf/organize
 ```
 
 See `APPLICATION_FLOW.md` for full request/response shapes and the complete error code table.
