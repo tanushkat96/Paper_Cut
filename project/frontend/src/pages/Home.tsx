@@ -24,7 +24,7 @@ export function Home() {
           <span className="tool-card__title">PDF to Word</span>
           <p className="tool-card__desc">Pull the text out of a PDF into an editable Word file.</p>
         </Link>
-         <Link to="/merge-pdf" className="tool-card">
+        <Link to="/merge-pdf" className="tool-card">
           <span className="tool-card__label">multiple .pdf → one .pdf</span>
           <span className="tool-card__title">Merge PDF</span>
           <p className="tool-card__desc">Combine several PDFs into one, in the order you choose.</p>
@@ -33,6 +33,15 @@ export function Home() {
           <span className="tool-card__label">.pdf → .zip of .pdf</span>
           <span className="tool-card__title">Split PDF</span>
           <p className="tool-card__desc">Break a PDF apart by page, or by the ranges you set.</p>
+        </Link>
+        <Link to="/compress-pdf" className="tool-card">
+          <h2>Compress PDF</h2>
+          <p>Reduce PDF file size.</p>
+        </Link>
+
+        <Link to="/organize-pdf" className="tool-card">
+          <h2>Organize PDF</h2>
+          <p>Reorder, rotate, and remove pages.</p>
         </Link>
       </div>
     </div>

@@ -7,6 +7,15 @@ const ENDPOINTS: Record<ConversionKind, string> = {
 
 const MERGE_ENDPOINT = "/api/v1/pdf/merge";
 const SPLIT_ENDPOINT = "/api/v1/pdf/split";
+const COMPRESS_ENDPOINT = "/api/v1/pdf/compress";
+const ORGANIZE_INFO_ENDPOINT = "/api/v1/pdf/organize/info";
+const ORGANIZE_ENDPOINT = "/api/v1/pdf/organize";
+
+
+export interface OrganizeInfo {
+  success: boolean;
+  page_count: number;
+}
 
 /**
  * Shared upload primitive: POSTs the given FormData via XHR (not fetch) so we
@@ -117,4 +126,137 @@ export function triggerDownload(result: ConversionResult) {
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
+}
+
+export function compressPdf(
+  file: File,
+  level: "low" | "recommended" | "extreme",
+  onUploadProgress: (percent: number) => void,
+  onProcessingStart: () => void
+): Promise<ConversionResult & { originalSize: number; compressedSize: number; reductionPercent: number }> {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("level", level);
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+
+    xhr.open("POST", COMPRESS_ENDPOINT);
+    xhr.responseType = "blob";
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        const percent = Math.round(
+          (event.loaded / event.total) * 100
+        );
+
+        onUploadProgress(percent);
+
+        if (percent >= 100) {
+          onProcessingStart();
+        }
+      }
+    };
+
+    xhr.onload = async () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        const contentDisposition =
+          xhr.getResponseHeader("Content-Disposition") || "";
+
+        const match = contentDisposition.match(
+          /filename="?([^"]+)"?/
+        );
+
+        const filename = match
+          ? match[1]
+          : "compressed.pdf";
+
+        const originalSize = Number(
+          xhr.getResponseHeader("X-Original-Size") || "0"
+        );
+
+        const compressedSize = Number(
+          xhr.getResponseHeader("X-Compressed-Size") || "0"
+        );
+
+        const reductionPercent = Number(
+          xhr.getResponseHeader("X-Reduction-Percent") || "0"
+        );
+
+        resolve({
+          blob: xhr.response as Blob,
+          filename,
+          originalSize,
+          compressedSize,
+          reductionPercent,
+        });
+
+        return;
+      }
+
+      try {
+        const text = await (xhr.response as Blob).text();
+        const parsed: ApiErrorBody = JSON.parse(text);
+        reject(parsed.error);
+      } catch {
+        reject({
+          code: "INTERNAL_ERROR",
+          message: "Something went wrong on our end.",
+        });
+      }
+    };
+
+    xhr.onerror = () => {
+      reject({
+        code: "INTERNAL_ERROR",
+        message: "Could not reach the server.",
+      });
+    };
+
+    xhr.send(formData);
+  });
+}
+
+export async function getOrganizeInfo(
+  file: File
+): Promise<OrganizeInfo> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch(
+    ORGANIZE_INFO_ENDPOINT,
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
+
+  if (!response.ok) {
+    const parsed: ApiErrorBody = await response.json();
+    throw parsed.error;
+  }
+
+  return response.json();
+}
+export function organizePdf(
+  file: File,
+  pages: Array<{ page: number; rotation: number }>,
+  onUploadProgress: (percent: number) => void,
+  onProcessingStart: () => void
+): Promise<ConversionResult> {
+  const formData = new FormData();
+
+  formData.append("file", file);
+  formData.append(
+    "pages",
+    JSON.stringify(pages)
+  );
+
+  return xhrUpload(
+    ORGANIZE_ENDPOINT,
+    formData,
+    onUploadProgress,
+    onProcessingStart,
+    "organized.pdf"
+  );
 }

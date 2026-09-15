@@ -57,3 +57,17 @@ class InvalidPageRangeError(ConversionError):
 class ZipCreationFailedError(ConversionError):
     code = "ZIP_CREATION_FAILED"
     status_code = 500
+
+class InvalidCompressionLevelError(ConversionError):
+    code = "INVALID_COMPRESSION_LEVEL"
+    status_code = 400
+
+
+class InvalidPageSpecError(ConversionError):
+    code = "INVALID_PAGE_SPEC"
+    status_code = 400
+
+
+class EmptyDocumentError(ConversionError):
+    code = "EMPTY_DOCUMENT"
+    status_code = 400

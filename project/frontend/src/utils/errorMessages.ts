@@ -48,7 +48,24 @@ export const ERROR_COPY: Record<string, { title: string; message: string }> = {
     title: "Something went wrong",
     message: "Something went wrong on our end. Please try again.",
   },
+  INVALID_COMPRESSION_LEVEL: {
+  title: "Invalid compression level",
+  message: "Choose a valid compression level and try again.",
+},
+
+INVALID_PAGE_SPEC: {
+  title: "Invalid page selection",
+  message: "The requested page arrangement is invalid.",
+},
+
+EMPTY_DOCUMENT: {
+  title: "No pages remaining",
+  message: "Keep at least one page in the PDF.",
+},
+
 };
+
+
 
 export function copyForError(code: string): { title: string; message: string } {
   return ERROR_COPY[code as ErrorCode] ?? ERROR_COPY.INTERNAL_ERROR;

@@ -17,6 +17,9 @@ export type ErrorCode =
   | "TOO_FEW_FILES"
   | "INVALID_PAGE_RANGE"
   | "ZIP_CREATION_FAILED"
+  | "INVALID_COMPRESSION_LEVEL"
+  | "INVALID_PAGE_SPEC"
+  | "EMPTY_DOCUMENT"
   | "INTERNAL_ERROR";
 
 export interface ApiErrorBody {

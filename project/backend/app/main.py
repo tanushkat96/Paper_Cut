@@ -4,7 +4,14 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.routes import merge_pdf, pdf_to_word, split_pdf, word_to_pdf
+from app.api.routes import (
+    compress_pdf,
+    merge_pdf,
+    organize_pdf,
+    pdf_to_word,
+    split_pdf,
+    word_to_pdf,
+)
 from app.schemas.errors import ConversionError
 
 logging.basicConfig(level=logging.INFO)
@@ -17,13 +24,20 @@ app.add_middleware(
     allow_origins=["*"],  # tighten before any public deployment
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=[
+        "Content-Disposition",
+        "X-Original-Size",
+        "X-Compressed-Size",
+        "X-Reduction-Percent",
+    ],
 )
 
 app.include_router(word_to_pdf.router, prefix="/api/v1")
 app.include_router(pdf_to_word.router, prefix="/api/v1")
 app.include_router(merge_pdf.router, prefix="/api/v1")
 app.include_router(split_pdf.router, prefix="/api/v1")
-
+app.include_router(compress_pdf.router, prefix="/api/v1")
+app.include_router(organize_pdf.router, prefix="/api/v1")
 
 @app.exception_handler(ConversionError)
 async def conversion_error_handler(request: Request, exc: ConversionError):
