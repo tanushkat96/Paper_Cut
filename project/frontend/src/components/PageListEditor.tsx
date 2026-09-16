@@ -7,11 +7,17 @@ interface PageItem {
 interface PageListEditorProps {
   pages: PageItem[];
   onChange: (pages: PageItem[]) => void;
+  selectedPage: number;
+  onSelectPage: (index: number) => void;
+  thumbnails: (string | undefined)[];
 }
 
 export function PageListEditor({
   pages,
   onChange,
+  selectedPage,
+  onSelectPage,
+  thumbnails,
 }: PageListEditorProps) {
   const moveUp = (index: number) => {
     if (index === 0) return;
@@ -24,10 +30,22 @@ export function PageListEditor({
     ];
 
     onChange(next);
+
+    if (selectedPage === index) {
+      onSelectPage(index - 1);
+    } else if (
+      selectedPage === index - 1
+    ) {
+      onSelectPage(index);
+    }
   };
 
   const moveDown = (index: number) => {
-    if (index === pages.length - 1) return;
+    if (
+      index === pages.length - 1
+    ) {
+      return;
+    }
 
     const next = [...pages];
 
@@ -37,6 +55,14 @@ export function PageListEditor({
     ];
 
     onChange(next);
+
+    if (selectedPage === index) {
+      onSelectPage(index + 1);
+    } else if (
+      selectedPage === index + 1
+    ) {
+      onSelectPage(index);
+    }
   };
 
   const rotate = (index: number) => {
@@ -44,97 +70,179 @@ export function PageListEditor({
 
     next[index] = {
       ...next[index],
-      rotation: (next[index].rotation + 90) % 360,
+      rotation:
+        (next[index].rotation +
+          90) %
+        360,
     };
 
     onChange(next);
   };
 
   const remove = (index: number) => {
+    if (pages.length === 1) {
+      return;
+    }
+
     const next = pages.filter(
-      (_, currentIndex) => currentIndex !== index
+      (_, currentIndex) =>
+        currentIndex !== index
     );
 
     onChange(next);
+
+    if (selectedPage > index) {
+      onSelectPage(
+        selectedPage - 1
+      );
+    } else if (
+      selectedPage === index &&
+      index >= next.length
+    ) {
+      onSelectPage(
+        next.length - 1
+      );
+    }
   };
 
   return (
-    <div className="file-list">
-      {pages.map((page, index) => (
-        <div
-          className="file-list__item"
-          key={page.id}
-        >
-          <span className="file-list__index">
-            {index + 1}.
-          </span>
+    <aside className="organize-sidebar">
 
-          <div className="file-list__info">
-            <p className="file-list__name">
-              Page {page.originalPage + 1}
-            </p>
+      <div className="organize-sidebar-header">
+        <strong>Pages</strong>
 
-            <p className="file-list__size">
-              Rotation: {page.rotation}°
-            </p>
-          </div>
-
-          <div className="file-list__controls">
-            <button
-              type="button"
-              className="file-list__control-btn"
-              onClick={() => moveUp(index)}
-              disabled={index === 0}
-              title="Move page up"
-              aria-label={`Move page ${page.originalPage + 1
-                } up`}
-            >
-              ↑
-            </button>
-
-            <button
-              type="button"
-              className="file-list__control-btn"
-              onClick={() => moveDown(index)}
-              disabled={index === pages.length - 1}
-              title="Move page down"
-              aria-label={`Move page ${page.originalPage + 1
-                } down`}
-            >
-              ↓
-            </button>
-
-            <button
-              type="button"
-              className="file-list__control-btn"
-              onClick={() => rotate(index)}
-              title="Rotate page"
-              aria-label={`Rotate page ${page.originalPage + 1
-                }`}
-            >
-              ↻
-            </button>
-
-            <button
-              type="button"
-              className="file-list__control-btn file-list__control-btn--remove"
-              onClick={() => remove(index)}
-              title="Remove page"
-              aria-label={`Remove page ${page.originalPage + 1
-                }`}
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-      ))}
-
-      <div className="file-list__footer">
-        <span className="file-list__count">
+        <span>
           {pages.length} page
-          {pages.length === 1 ? "" : "s"}
+          {pages.length === 1
+            ? ""
+            : "s"}
         </span>
       </div>
-    </div>
+
+      <div className="organize-page-list">
+        {pages.map(
+          (page, index) => {
+            const selected =
+              selectedPage === index;
+
+            return (
+              <div
+                key={page.id}
+                className={`organize-page-card ${
+                  selected
+                    ? "selected"
+                    : ""
+                }`}
+              >
+
+                <button
+                  type="button"
+                  className="organize-thumbnail"
+                  onClick={() =>
+                    onSelectPage(
+                      index
+                    )
+                  }
+                  title={`Preview page ${
+                    index + 1
+                  }`}
+                >
+                  {thumbnails[
+                    page.originalPage
+                  ] ? (
+                    <img
+                      src={
+                        thumbnails[
+                          page.originalPage
+                        ]
+                      }
+                      alt={`Page ${
+                        index + 1
+                      }`}
+                      style={{
+                        transform: `rotate(${page.rotation}deg)`,
+                      }}
+                    />
+                  ) : (
+                    <span>
+                      Loading...
+                    </span>
+                  )}
+                </button>
+
+                <div className="organize-page-card-footer">
+
+                  <span>
+                    Page {index + 1}
+                  </span>
+
+                  <div className="organize-controls">
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        moveUp(index)
+                      }
+                      disabled={
+                        index === 0
+                      }
+                      title="Move page up"
+                      aria-label="Move page up"
+                    >
+                      ↑
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        moveDown(index)
+                      }
+                      disabled={
+                        index ===
+                        pages.length -
+                          1
+                      }
+                      title="Move page down"
+                      aria-label="Move page down"
+                    >
+                      ↓
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        rotate(index)
+                      }
+                      title="Rotate page"
+                      aria-label="Rotate page"
+                    >
+                      ↻
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        remove(index)
+                      }
+                      disabled={
+                        pages.length === 1
+                      }
+                      title="Remove page"
+                      aria-label="Remove page"
+                      className="remove"
+                    >
+                      ✕
+                    </button>
+
+                  </div>
+                </div>
+              </div>
+            );
+          }
+        )}
+      </div>
+
+      
+    </aside>
   );
 }

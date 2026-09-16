@@ -1,19 +1,26 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import * as pdfjsLib from "pdfjs-dist";
+import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 
 import { FileUploader } from "../components/FileUploader";
 import { UploadProgress } from "../components/UploadProgress";
 import { DownloadButton } from "../components/DownloadButton";
 import { PageListEditor } from "../components/PageListEditor";
+
 import {
   getOrganizeInfo,
   organizePdf,
 } from "../services/api";
+
 import { copyForError } from "../utils/errorMessages";
-import {
+
+import type {
   ConversionResult,
   ConversionState,
 } from "../types/conversion";
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 interface PageItem {
   id: number;
@@ -31,6 +38,15 @@ export function OrganizePdf() {
   const [pages, setPages] =
     useState<PageItem[]>([]);
 
+  const [selectedPage, setSelectedPage] =
+    useState(0);
+
+  const [thumbnails, setThumbnails] =
+    useState<(string | undefined)[]>([]);
+
+  const [preview, setPreview] =
+    useState<string | undefined>();
+
   const [uploadPercent, setUploadPercent] =
     useState(0);
 
@@ -38,25 +54,212 @@ export function OrganizePdf() {
     useState<ConversionResult | null>(null);
 
   const [error, setError] =
-    useState<{ code: string; message: string } | null>(
-      null
-    );
+    useState<{
+      code: string;
+      message: string;
+    } | null>(null);
 
+  /*
+   * Generate thumbnails
+   */
+  useEffect(() => {
+    if (!file) return;
+
+    let cancelled = false;
+
+    const loadPdf = async () => {
+      try {
+        setThumbnails([]);
+        setPreview(undefined);
+
+        const buffer =
+          await file.arrayBuffer();
+
+        const pdf =
+          await pdfjsLib
+            .getDocument({
+              data: buffer,
+            })
+            .promise;
+
+        const generated: (
+          string | undefined
+        )[] = new Array(pdf.numPages);
+
+        for (
+          let index = 0;
+          index < pdf.numPages;
+          index++
+        ) {
+          if (cancelled) return;
+
+          const page =
+            await pdf.getPage(index + 1);
+
+          const viewport =
+            page.getViewport({
+              scale: 0.28,
+            });
+
+          const canvas =
+            document.createElement("canvas");
+
+          const context =
+            canvas.getContext("2d");
+
+          if (!context) continue;
+
+          canvas.width =
+            viewport.width;
+
+          canvas.height =
+            viewport.height;
+
+          await page.render({
+            canvas,
+            canvasContext: context,
+            viewport,
+          }).promise;
+
+          generated[index] =
+            canvas.toDataURL(
+              "image/jpeg",
+              0.82
+            );
+
+          setThumbnails([
+            ...generated,
+          ]);
+        }
+      } catch (err) {
+        console.error(
+          "PDF preview error:",
+          err
+        );
+      }
+    };
+
+    loadPdf();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [file]);
+
+  /*
+   * Render selected page
+   */
+  useEffect(() => {
+    if (
+      !file ||
+      pages.length === 0 ||
+      !pages[selectedPage]
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const renderPreview = async () => {
+      try {
+        const buffer =
+          await file.arrayBuffer();
+
+        const pdf =
+          await pdfjsLib
+            .getDocument({
+              data: buffer,
+            })
+            .promise;
+
+        const selected =
+          pages[selectedPage];
+
+        const page =
+          await pdf.getPage(
+            selected.originalPage + 1
+          );
+
+        const viewport =
+          page.getViewport({
+            scale: 1.5,
+            rotation:
+              selected.rotation,
+          });
+
+        const canvas =
+          document.createElement("canvas");
+
+        const context =
+          canvas.getContext("2d");
+
+        if (!context) return;
+
+        canvas.width =
+          viewport.width;
+
+        canvas.height =
+          viewport.height;
+
+        await page.render({
+          canvas,
+          canvasContext: context,
+          viewport,
+        }).promise;
+
+        if (!cancelled) {
+          setPreview(
+            canvas.toDataURL(
+              "image/png"
+            )
+          );
+        }
+      } catch (err) {
+        console.error(
+          "Selected page preview error:",
+          err
+        );
+      }
+    };
+
+    renderPreview();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    file,
+    pages,
+    selectedPage,
+  ]);
+
+  /*
+   * Select PDF
+   */
   const handleFileSelected = async (
     selected: File
   ) => {
     setFile(selected);
     setError(null);
+    setResult(null);
+    setPages([]);
+    setThumbnails([]);
+    setPreview(undefined);
+    setSelectedPage(0);
     setState("PROCESSING");
 
     try {
-      const info = await getOrganizeInfo(
-        selected
-      );
+      const info =
+        await getOrganizeInfo(
+          selected
+        );
 
       const initialPages: PageItem[] =
         Array.from(
-          { length: info.page_count },
+          {
+            length:
+              info.page_count,
+          },
           (_, index) => ({
             id: index,
             originalPage: index,
@@ -65,6 +268,7 @@ export function OrganizePdf() {
         );
 
       setPages(initialPages);
+      setSelectedPage(0);
       setState("FILE_SELECTED");
     } catch (err) {
       setError(
@@ -78,17 +282,50 @@ export function OrganizePdf() {
     }
   };
 
+  /*
+   * Keep selected page valid
+   */
+  const handlePagesChange = (
+    nextPages: PageItem[]
+  ) => {
+    setPages(nextPages);
+
+    if (
+      selectedPage >=
+      nextPages.length
+    ) {
+      setSelectedPage(
+        Math.max(
+          0,
+          nextPages.length - 1
+        )
+      );
+    }
+  };
+
+  /*
+   * Reset
+   */
   const reset = () => {
     setState("IDLE");
     setFile(null);
     setPages([]);
+    setThumbnails([]);
+    setPreview(undefined);
+    setSelectedPage(0);
     setUploadPercent(0);
     setResult(null);
     setError(null);
   };
 
+  /*
+   * Organize
+   */
   const handleOrganize = async () => {
-    if (!file || pages.length === 0) {
+    if (
+      !file ||
+      pages.length === 0
+    ) {
       setError({
         code: "EMPTY_DOCUMENT",
         message:
@@ -108,14 +345,22 @@ export function OrganizePdf() {
         await organizePdf(
           file,
           pages.map((page) => ({
-            page: page.originalPage,
-            rotation: page.rotation,
+            page:
+              page.originalPage,
+            rotation:
+              page.rotation,
           })),
           setUploadPercent,
-          () => setState("PROCESSING")
+          () =>
+            setState(
+              "PROCESSING"
+            )
         );
 
-      setResult(organizeResult);
+      setResult(
+        organizeResult
+      );
+
       setState("COMPLETED");
     } catch (err) {
       setError(
@@ -129,109 +374,286 @@ export function OrganizePdf() {
     }
   };
 
-  return (
-    <div className="app-shell">
-      <Link to="/" className="brand">
-        <span className="brand__mark">
-          papercut
-        </span>
-      </Link>
+  /*
+   * Upload screen
+   */
+  if (state === "IDLE") {
+    return (
+      <div className="organize-upload-page">
+        <Link
+          to="/"
+          className="organize-brand"
+        >
+          <span>papercut</span>
+          <i />
+        </Link>
 
-      <Link to="/" className="back-link">
-        ← Back
-      </Link>
+        <div className="organize-upload-content">
+          <Link
+            to="/"
+            className="back-link"
+          >
+            ← Back
+          </Link>
 
-      <h1>Organize PDF</h1>
+          <h1>Organize PDF</h1>
 
-      <p className="lede">
-        Reorder, rotate, or remove pages from a
-        PDF.
-      </p>
-
-      {state === "IDLE" && (
-        <FileUploader
-          accept=".pdf"
-          onFileSelected={handleFileSelected}
-          supportedInfo="Accepts .pdf, up to 25 MB."
-        />
-      )}
-
-      {state === "FILE_SELECTED" && file && (
-        <div className="status-panel">
-          <p className="status-panel__file">
-            {file.name}
+          <p className="lede">
+            Reorder, rotate, or remove
+            pages from a PDF.
           </p>
 
-          <PageListEditor
-            pages={pages}
-            onChange={setPages}
+          <FileUploader
+            accept=".pdf"
+            onFileSelected={
+              handleFileSelected
+            }
+            supportedInfo="Accepts .pdf, up to 25 MB."
           />
+        </div>
+      </div>
+    );
+  }
 
-          <div className="button-row">
-            <button
-              className="button"
-              onClick={handleOrganize}
-              disabled={pages.length === 0}
-            >
-              Organize PDF
-            </button>
+  /*
+   * Completed screen
+   */
+  if (
+    state === "COMPLETED" &&
+    result
+  ) {
+    return (
+      <div className="organize-upload-page">
+        <Link
+          to="/"
+          className="organize-brand"
+        >
+          <span>papercut</span>
+          <i />
+        </Link>
 
-            <button
-              className="button button--ghost"
-              onClick={reset}
+        <div className="organize-upload-content">
+          <h1>
+            Your PDF is ready
+          </h1>
+
+          <DownloadButton
+            result={result}
+            onReset={reset}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  /*
+   * Error screen
+   */
+  if (
+    state === "ERROR" &&
+    error
+  ) {
+    return (
+      <div className="organize-upload-page">
+        <Link
+          to="/"
+          className="organize-brand"
+        >
+          <span>papercut</span>
+          <i />
+        </Link>
+
+        <div className="organize-upload-content">
+          <div className="error-box">
+            <p className="error-box__title">
+              {
+                copyForError(
+                  error.code
+                ).title
+              }
+            </p>
+
+            <p className="error-box__msg">
+              {
+                copyForError(
+                  error.code
+                ).message
+              }
+            </p>
+          </div>
+
+          <button
+            className="button"
+            onClick={() =>
+              setState(
+                file
+                  ? "FILE_SELECTED"
+                  : "IDLE"
+              )
+            }
+          >
+            Try again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  /*
+   * Main Organize editor
+   */
+  return (
+    <div className="organize-editor">
+
+      {/* TOP HEADER */}
+      <header className="organize-header">
+        <Link
+          to="/"
+          className="organize-brand"
+        >
+          <span>papercut</span>
+          <i />
+        </Link>
+
+        <Link
+          to="/"
+          className="organize-back"
+        >
+          ← Back
+        </Link>
+
+        <p>
+          Reorder, rotate, or remove
+          pages from a PDF.
+        </p>
+
+      </header>
+
+      {/* WORKSPACE */}
+      <main className="organize-main">
+
+        {/* LEFT SIDEBAR */}
+        <PageListEditor
+          pages={pages}
+          onChange={
+            handlePagesChange
+          }
+          selectedPage={
+            selectedPage
+          }
+          onSelectPage={
+            setSelectedPage
+          }
+          thumbnails={
+            thumbnails
+          }
+        />
+
+        {/* CENTER VIEWER */}
+        <section className="organize-viewer">
+
+          {/* VIEWER HEADER */}
+          <div className="organize-viewer-header">
+            <strong>
+              {file?.name}
+            </strong>
+
+             <button
+              type="button"
+              className="organize-submit"
+              onClick={
+                handleOrganize
+              }
+              disabled={
+                pages.length === 0 ||
+                state ===
+                  "UPLOADING" ||
+                state ===
+                  "PROCESSING"
+              }
             >
-              Choose a different file
+              Organize PDF →
             </button>
           </div>
-        </div>
-      )}
+
+          
+
+          {/* PDF */}
+          <div className="organize-viewer-body">
+
+            <button
+              type="button"
+              className="organize-nav-arrow organize-nav-arrow--left"
+              onClick={() =>
+                setSelectedPage(
+                  Math.max(
+                    0,
+                    selectedPage - 1
+                  )
+                )
+              }
+              disabled={
+                selectedPage === 0
+              }
+              title="Previous page"
+            >
+              ‹
+            </button>
+
+            <div className="organize-document">
+              {preview ? (
+                <img
+                  src={preview}
+                  alt={`Page ${
+                    selectedPage + 1
+                  }`}
+                />
+              ) : (
+                <div className="organize-loading">
+                  Loading preview...
+                </div>
+              )}
+            </div>
+
+            <button
+              type="button"
+              className="organize-nav-arrow organize-nav-arrow--right"
+              onClick={() =>
+                setSelectedPage(
+                  Math.min(
+                    pages.length - 1,
+                    selectedPage + 1
+                  )
+                )
+              }
+              disabled={
+                selectedPage ===
+                pages.length - 1
+              }
+              title="Next page"
+            >
+              ›
+            </button>
+          </div>
+
+           
+        </section>
+      </main>
 
       {(state === "UPLOADING" ||
         state === "PROCESSING") &&
         file && (
-          <UploadProgress
-            fileName={file.name}
-            state={state}
-            uploadPercent={uploadPercent}
-            processingLabel="Organizing…"
-          />
-        )}
-
-      {state === "COMPLETED" && result && (
-        <DownloadButton
-          result={result}
-          onReset={reset}
-        />
-      )}
-
-      {state === "ERROR" && error && (
-        <div>
-          <div className="error-box">
-            <p className="error-box__title">
-              {copyForError(error.code).title}
-            </p>
-
-            <p className="error-box__msg">
-              {copyForError(error.code).message}
-            </p>
-          </div>
-
-          <div className="button-row">
-            <button
-              className="button"
-              onClick={() =>
-                setState(
-                  file
-                    ? "FILE_SELECTED"
-                    : "IDLE"
-                )
+          <div className="organize-progress">
+            <UploadProgress
+              fileName={file.name}
+              state={state}
+              uploadPercent={
+                uploadPercent
               }
-            >
-              Try again
-            </button>
+              processingLabel="Organizing…"
+            />
           </div>
-        </div>
-      )}
+        )}
     </div>
   );
 }
