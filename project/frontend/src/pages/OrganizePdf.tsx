@@ -41,9 +41,6 @@ export function OrganizePdf() {
   const [selectedPage, setSelectedPage] =
     useState(0);
 
-  const [thumbnails, setThumbnails] =
-    useState<(string | undefined)[]>([]);
-
   const [preview, setPreview] =
     useState<string | undefined>();
 
@@ -59,92 +56,6 @@ export function OrganizePdf() {
       message: string;
     } | null>(null);
 
-  /*
-   * Generate thumbnails
-   */
-  useEffect(() => {
-    if (!file) return;
-
-    let cancelled = false;
-
-    const loadPdf = async () => {
-      try {
-        setThumbnails([]);
-        setPreview(undefined);
-
-        const buffer =
-          await file.arrayBuffer();
-
-        const pdf =
-          await pdfjsLib
-            .getDocument({
-              data: buffer,
-            })
-            .promise;
-
-        const generated: (
-          string | undefined
-        )[] = new Array(pdf.numPages);
-
-        for (
-          let index = 0;
-          index < pdf.numPages;
-          index++
-        ) {
-          if (cancelled) return;
-
-          const page =
-            await pdf.getPage(index + 1);
-
-          const viewport =
-            page.getViewport({
-              scale: 0.28,
-            });
-
-          const canvas =
-            document.createElement("canvas");
-
-          const context =
-            canvas.getContext("2d");
-
-          if (!context) continue;
-
-          canvas.width =
-            viewport.width;
-
-          canvas.height =
-            viewport.height;
-
-          await page.render({
-            canvas,
-            canvasContext: context,
-            viewport,
-          }).promise;
-
-          generated[index] =
-            canvas.toDataURL(
-              "image/jpeg",
-              0.82
-            );
-
-          setThumbnails([
-            ...generated,
-          ]);
-        }
-      } catch (err) {
-        console.error(
-          "PDF preview error:",
-          err
-        );
-      }
-    };
-
-    loadPdf();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [file]);
 
   /*
    * Render selected page
@@ -243,7 +154,7 @@ export function OrganizePdf() {
     setError(null);
     setResult(null);
     setPages([]);
-    setThumbnails([]);
+
     setPreview(undefined);
     setSelectedPage(0);
     setState("PROCESSING");
@@ -310,7 +221,6 @@ export function OrganizePdf() {
     setState("IDLE");
     setFile(null);
     setPages([]);
-    setThumbnails([]);
     setPreview(undefined);
     setSelectedPage(0);
     setUploadPercent(0);
@@ -544,9 +454,7 @@ export function OrganizePdf() {
           onSelectPage={
             setSelectedPage
           }
-          thumbnails={
-            thumbnails
-          }
+
         />
 
         {/* CENTER VIEWER */}
@@ -558,7 +466,7 @@ export function OrganizePdf() {
               {file?.name}
             </strong>
 
-             <button
+            <button
               type="button"
               className="organize-submit"
               onClick={
@@ -567,16 +475,16 @@ export function OrganizePdf() {
               disabled={
                 pages.length === 0 ||
                 state ===
-                  "UPLOADING" ||
+                "UPLOADING" ||
                 state ===
-                  "PROCESSING"
+                "PROCESSING"
               }
             >
               Organize PDF →
             </button>
           </div>
 
-          
+
 
           {/* PDF */}
           <div className="organize-viewer-body">
@@ -604,9 +512,8 @@ export function OrganizePdf() {
               {preview ? (
                 <img
                   src={preview}
-                  alt={`Page ${
-                    selectedPage + 1
-                  }`}
+                  alt={`Page ${selectedPage + 1
+                    }`}
                 />
               ) : (
                 <div className="organize-loading">
@@ -634,9 +541,64 @@ export function OrganizePdf() {
             >
               ›
             </button>
+            {/* PAGE ACTIONS */}
+            <div className="organize-page-actions">
+
+              <button
+                type="button"
+                onClick={() => {
+                  const next = [...pages];
+
+                  next[selectedPage] = {
+                    ...next[selectedPage],
+                    rotation:
+                      (
+                        next[selectedPage]
+                          .rotation + 90
+                      ) % 360,
+                  };
+
+                  setPages(next);
+                }}
+                title="Rotate page"
+              >
+                ↻ Rotate
+              </button>
+
+              <button
+                type="button"
+                className="remove"
+                disabled={pages.length === 1}
+                onClick={() => {
+                  if (pages.length === 1) {
+                    return;
+                  }
+
+                  const next =
+                    pages.filter(
+                      (_, index) =>
+                        index !==
+                        selectedPage
+                    );
+
+                  setPages(next);
+
+                  setSelectedPage(
+                    Math.min(
+                      selectedPage,
+                      next.length - 1
+                    )
+                  );
+                }}
+                title="Remove page"
+              >
+                ✕ Remove
+              </button>
+
+            </div>
           </div>
 
-           
+
         </section>
       </main>
 

@@ -1,3 +1,7 @@
+import {
+  type DragEvent,
+} from "react";
+
 interface PageItem {
   id: number;
   originalPage: number;
@@ -9,7 +13,6 @@ interface PageListEditorProps {
   onChange: (pages: PageItem[]) => void;
   selectedPage: number;
   onSelectPage: (index: number) => void;
-  thumbnails: (string | undefined)[];
 }
 
 export function PageListEditor({
@@ -17,93 +20,84 @@ export function PageListEditor({
   onChange,
   selectedPage,
   onSelectPage,
-  thumbnails,
 }: PageListEditorProps) {
-  const moveUp = (index: number) => {
-    if (index === 0) return;
+  const handleDragStart = (
+    event: DragEvent<HTMLDivElement>,
+    index: number
+  ) => {
+    event.dataTransfer.effectAllowed =
+      "move";
 
-    const next = [...pages];
-
-    [next[index - 1], next[index]] = [
-      next[index],
-      next[index - 1],
-    ];
-
-    onChange(next);
-
-    if (selectedPage === index) {
-      onSelectPage(index - 1);
-    } else if (
-      selectedPage === index - 1
-    ) {
-      onSelectPage(index);
-    }
+    event.dataTransfer.setData(
+      "text/plain",
+      String(index)
+    );
   };
 
-  const moveDown = (index: number) => {
+  const handleDragOver = (
+    event: DragEvent<HTMLDivElement>
+  ) => {
+    event.preventDefault();
+
+    event.dataTransfer.dropEffect =
+      "move";
+  };
+
+  const handleDrop = (
+    event: DragEvent<HTMLDivElement>,
+    dropIndex: number
+  ) => {
+    event.preventDefault();
+
+    const fromIndex = Number(
+      event.dataTransfer.getData(
+        "text/plain"
+      )
+    );
+
     if (
-      index === pages.length - 1
+      Number.isNaN(fromIndex) ||
+      fromIndex === dropIndex
     ) {
       return;
     }
 
     const next = [...pages];
 
-    [next[index + 1], next[index]] = [
-      next[index],
-      next[index + 1],
-    ];
+    const [movedPage] =
+      next.splice(fromIndex, 1);
 
-    onChange(next);
-
-    if (selectedPage === index) {
-      onSelectPage(index + 1);
-    } else if (
-      selectedPage === index + 1
-    ) {
-      onSelectPage(index);
-    }
-  };
-
-  const rotate = (index: number) => {
-    const next = [...pages];
-
-    next[index] = {
-      ...next[index],
-      rotation:
-        (next[index].rotation +
-          90) %
-        360,
-    };
-
-    onChange(next);
-  };
-
-  const remove = (index: number) => {
-    if (pages.length === 1) {
-      return;
-    }
-
-    const next = pages.filter(
-      (_, currentIndex) =>
-        currentIndex !== index
+    next.splice(
+      dropIndex,
+      0,
+      movedPage
     );
 
     onChange(next);
 
-    if (selectedPage > index) {
+    /*
+     * Keep the same page selected
+     * after dragging.
+     */
+    if (selectedPage === fromIndex) {
+      onSelectPage(dropIndex);
+    } else if (
+      fromIndex < selectedPage &&
+      dropIndex >= selectedPage
+    ) {
       onSelectPage(
         selectedPage - 1
       );
     } else if (
-      selectedPage === index &&
-      index >= next.length
+      fromIndex > selectedPage &&
+      dropIndex <= selectedPage
     ) {
       onSelectPage(
-        next.length - 1
+        selectedPage + 1
       );
     }
   };
+
 
   return (
     <aside className="organize-sidebar">
@@ -118,131 +112,60 @@ export function PageListEditor({
             : "s"}
         </span>
       </div>
-
       <div className="organize-page-list">
+
         {pages.map(
-          (page, index) => {
-            const selected =
-              selectedPage === index;
-
-            return (
-              <div
-                key={page.id}
-                className={`organize-page-card ${
-                  selected
-                    ? "selected"
-                    : ""
+          (page, index) => (
+            <div
+              key={page.id}
+              draggable
+              onDragStart={(event) =>
+                handleDragStart(
+                  event,
+                  index
+                )
+              }
+              onDragOver={
+                handleDragOver
+              }
+              onDrop={(event) =>
+                handleDrop(
+                  event,
+                  index
+                )
+              }
+              className={`organize-page-row ${selectedPage === index
+                  ? "selected"
+                  : ""
                 }`}
+              onClick={() =>
+                onSelectPage(index)
+              }
+            >
+
+              <span
+                className="organize-drag-handle"
+                title="Drag to reorder"
               >
+                ⋮⋮
+              </span>
 
-                <button
-                  type="button"
-                  className="organize-thumbnail"
-                  onClick={() =>
-                    onSelectPage(
-                      index
-                    )
-                  }
-                  title={`Preview page ${
-                    index + 1
-                  }`}
-                >
-                  {thumbnails[
-                    page.originalPage
-                  ] ? (
-                    <img
-                      src={
-                        thumbnails[
-                          page.originalPage
-                        ]
-                      }
-                      alt={`Page ${
-                        index + 1
-                      }`}
-                      style={{
-                        transform: `rotate(${page.rotation}deg)`,
-                      }}
-                    />
-                  ) : (
-                    <span>
-                      Loading...
-                    </span>
-                  )}
-                </button>
+              <span className="organize-page-number">
+                {index + 1}
+              </span>
 
-                <div className="organize-page-card-footer">
+              <span className="organize-page-name">
+                Page {index + 1}
+              </span>
 
-                  <span>
-                    Page {index + 1}
-                  </span>
-
-                  <div className="organize-controls">
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        moveUp(index)
-                      }
-                      disabled={
-                        index === 0
-                      }
-                      title="Move page up"
-                      aria-label="Move page up"
-                    >
-                      ↑
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        moveDown(index)
-                      }
-                      disabled={
-                        index ===
-                        pages.length -
-                          1
-                      }
-                      title="Move page down"
-                      aria-label="Move page down"
-                    >
-                      ↓
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        rotate(index)
-                      }
-                      title="Rotate page"
-                      aria-label="Rotate page"
-                    >
-                      ↻
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        remove(index)
-                      }
-                      disabled={
-                        pages.length === 1
-                      }
-                      title="Remove page"
-                      aria-label="Remove page"
-                      className="remove"
-                    >
-                      ✕
-                    </button>
-
-                  </div>
-                </div>
-              </div>
-            );
-          }
+            </div>
+          )
         )}
+
       </div>
 
-      
+
+
     </aside>
   );
 }
