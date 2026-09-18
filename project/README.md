@@ -24,8 +24,7 @@ A minimal PDF utility web app supporting Word → PDF and PDF → Word conversio
 - PDF → Word only supports **text-based PDFs**. Scanned/image-only PDFs return a `NO_TEXT_LAYER` error — OCR is a future module.
 - PDF → Word does **not** preserve tables, multi-column layout, images, or most font/style fidelity — text content only.
 - PDF compression currently performs structural optimization and does not resample embedded images. Some PDFs may therefore show little or no size reduction.
-- Organize PDF uses a page specification supplied by the frontend and requires at least one page in the final document.
-- No authentication, accounts, history, or billing.
+- Organize PDF uses a page specification supplied by the frontend and requires at least one page in the final document. The UI supports drag-and-drop page reordering, page selection, page removal, and page rotation.
 - Word → PDF conversions are serialized server-side (one at a time) to avoid LibreOffice profile-lock issues. Merge, Split, Compress, and Organize do not require the LibreOffice queue.
 - Uploaded files are stored temporarily in request-scoped workspaces and cleaned after processing.
 

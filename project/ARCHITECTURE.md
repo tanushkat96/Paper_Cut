@@ -135,9 +135,11 @@ frontend/
 - Compression-level selection
 - Display of compression statistics
 - PDF page organization controls
-- Page reordering
+- Page selection
+- Drag-and-drop page reordering
 - Page removal
 - Page rotation
+- Center-page preview
 - Error display
 - Download of result
 
@@ -420,41 +422,53 @@ Compression is optimization-based and does not guarantee that every PDF will bec
 
 ## 11. Organize PDF
 
-Organizes PDF pages by allowing page reordering, removal, and rotation.
+Organizes PDF pages by allowing the user to select, reorder, remove, and rotate pages before generating the final document.
 
-PDF
- |
- ▼
-File validation
- |
- ▼
-Get page count
- |
- ▼
-User organizes pages
- |
- ├── Reorder pages
- ├── Remove pages
- └── Rotate pages
-        |
-        ▼
-Page specification validation
-        |
-        ▼
-PyMuPDF insert_pdf()
-        |
-        ▼
-Apply page rotation
-        |
-        ▼
-organized.pdf
-        |
-        ▼
-Download response
-        |
-        ▼
-Temporary files deleted
+### 11.1 User Interface
 
+The Organize PDF interface is divided into two main areas:
+
+```text
+┌──────────────────────┬─────────────────────────────────────┐
+│                      │                                     │
+│      Page List       │          Center PDF Preview         │
+│                      │                                     │
+│  ⋮⋮  Page 1           │                                     │
+│  ⋮⋮  Page 2           │             ┌───────────┐           │
+│  ⋮⋮  Page 3           │             │           │           │
+│  ⋮⋮  Page 4           │             │   PDF     │           │
+│                      │             │   Page    │           │
+│                      │             │           │           │
+│                      │             └───────────┘           │
+│                      │                                     │
+│                      │           Rotate      Remove        │
+└──────────────────────┴─────────────────────────────────────┘
+Page List
+
+The left sidebar contains a simple list of pages:
+
+Page numbers are displayed without thumbnails
+Pages can be selected by clicking them
+Pages can be reordered using drag and drop
+The currently selected page is visually highlighted
+
+The sidebar does not perform PDF processing. It only maintains the page ordering and selection state.
+
+Center Preview
+
+The center area displays a preview of the currently selected PDF page.
+
+The preview is generated on the frontend using PDF.js.
+
+The selected page's rotation is applied to the preview so that the user can see the current orientation.
+
+Page Actions
+
+The center viewer provides actions for the selected page:
+
+Rotate — rotates the selected page by 90 degrees
+Remove — removes the selected page from the output
+Page navigation can be used to move between pages
 ### 11.1 Page specification
 
 The backend accepts a page specification containing:

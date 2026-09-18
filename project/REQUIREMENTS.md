@@ -1,22 +1,26 @@
 # iLovePDF Clone — Requirements
 
-## 1. Module 1 
+## 1. Module 1
 
 - Word → PDF
 - PDF → Word
 
-## Module 2 
+## Module 2
+
 - Merge PDF
 - Split PDF
 
-## Module 3 
+## Module 3
+
 - Compress PDF
 - Organize PDF
 
 ## 2. Functional Requirements
 
 ### 2.1 Word → PDF
+
 The system must:
+
 - Accept `.doc` files
 - Accept `.docx` files
 - Reject unsupported file types (`UNSUPPORTED_FILE_TYPE`)
@@ -28,7 +32,9 @@ The system must:
 - Delete temporary files after processing, including on failure
 
 ### 2.2 PDF → Word
+
 The system must:
+
 - Accept `.pdf` files
 - Reject unsupported file types (`UNSUPPORTED_FILE_TYPE`)
 - Validate maximum file size (`FILE_TOO_LARGE`)
@@ -41,7 +47,9 @@ The system must:
 **Known limitation (by design in Module 1):** table structure, multi-column layout, images, and font/style fidelity are not preserved during PDF → Word conversion. This must be stated in the UI and README.
 
 ### 2.3 Merge PDF
+
 The system must:
+
 - Accept 2 or more `.pdf` files in a single request
 - Reject the request if fewer than `MIN_FILES_FOR_MERGE` (default 2) files are supplied (`TOO_FEW_FILES`)
 - Validate every file individually (extension, MIME type, size) before processing any of them
@@ -51,7 +59,9 @@ The system must:
 - Delete all temporary files (every input plus the merged output) after processing, including on failure
 
 ### 2.4 Split PDF
+
 The system must:
+
 - Accept a single `.pdf` file
 - Default to splitting every page into its own PDF when no page range is supplied
 - Optionally accept a `page_ranges` parameter (e.g. `1-3,5,7-9`) to split by custom ranges instead
@@ -112,30 +122,43 @@ Known behavior: compression is optimization-based and does not guarantee that ev
 
 The system must:
 
-- Accept a single .pdf file
-- Reject unsupported file types (UNSUPPORTED_FILE_TYPE)
-- Validate maximum file size (FILE_TOO_LARGE)
-- Reject unreadable or corrupted PDFs (CORRUPTED_DOCUMENT)
+- Accept a single `.pdf` file
+- Reject unsupported file types (`UNSUPPORTED_FILE_TYPE`)
+- Validate maximum file size (`FILE_TOO_LARGE`)
+- Reject unreadable or corrupted PDFs (`CORRUPTED_DOCUMENT`)
 - Provide the PDF page count before organization
-- Accept a page specification containing page numbers and optional rotation
+- Display the document pages in a left-side page list
+- Allow the user to select an individual page
+- Display the selected page in a center preview
+- Allow pages to be reordered using drag and drop
+- Allow the selected page to be rotated
+- Support page rotations of 0, 90, 180, and 270 degrees
+- Allow the selected page to be removed
+- Allow the user to combine reordering, rotation, and removal operations
+- Accept a page specification containing page numbers and rotation values
 - Use zero-based page indexes internally
-- Allow pages to be reordered by changing their order in the page specification
-- Allow pages to be removed by omitting them from the page specification
-- Allow individual pages to be rotated by 0, 90, 180, or 270 degrees
-- Reject invalid page specifications with INVALID_PAGE_SPEC
-- Generate organized.pdf
+- Reject invalid page specifications with `INVALID_PAGE_SPEC`
+- Generate `organized.pdf`
 - Provide the organized PDF for download
 - Delete temporary files after processing, including on failure
 
 A valid page specification has the following logical structure:
 
+````json
 [
-  {"page": 2, "rotation": 0},
-  {"page": 0, "rotation": 90},
-  {"page": 1, "rotation": 0}
+  {
+    "page": 2,
+    "rotation": 0
+  },
+  {
+    "page": 0,
+    "rotation": 90
+  },
+  {
+    "page": 1,
+    "rotation": 0
+  }
 ]
-
-Here, page is zero-based. The order determines the output page order. A page not included in the list is removed from the output.
 
 ## 3. Frontend Requirements
 
@@ -160,7 +183,7 @@ Here, page is zero-based. The order determines the output page order. A page not
 **Merge PDF Page**
 - Multi-file upload (drag-and-drop or browse), no artificial cap beyond per-file size limits
 - Selected-file list showing name, size, and position
-- Reordering controls and a per-file remove control
+- Drag-and-drop page reordering  and a per-file remove control
 - Clear indication that files merge in the order shown
 - "Clear all" option
 - Merge button, disabled until at least 2 files are selected
@@ -193,11 +216,14 @@ Here, page is zero-based. The order determines the output page order. A page not
 
 - Single PDF upload
 - Load and display the PDF page count before organization
-- Display pages in an order that can be changed by the user
-- Reordering controls
-- Remove-page control
-- Page rotation control
-- Clear visual indication of the available organize actions
+- Display pages in a left-side page list
+- Display simple page names/numbers without thumbnails
+- Select an individual page from the page list
+- Display the selected page in the center PDF preview
+- Drag and drop pages to reorder them
+- Highlight the currently selected page
+- Rotate the selected page
+- Remove the selected page
 - Organize button
 - Upload/processing indicator
 - Success/download state
@@ -215,9 +241,10 @@ POST /api/v1/pdf/split
 POST /api/v1/pdf/compress
 POST /api/v1/pdf/organize/info
 POST /api/v1/pdf/organize
-```
+````
 
 The backend must:
+
 - Validate files (extension, MIME type, size, corruption)
 - Generate unique, UUID-named temporary workspace paths per request
 - Perform conversion under a bounded concurrency model (single-concurrency queue for Word→PDF specifically, due to LibreOffice; Merge/Split have no such constraint) and a hard timeout where applicable
@@ -228,9 +255,9 @@ The backend must:
 - For Merge specifically: validate all files before merging any of them, and reject the entire request if any file is invalid — never produce a partial merge
 - For Organize specifically: validate every page specification entry against the document page count before producing the output
 - Return compression metadata through response headers:
- - X-Original-Size
- - X-Compressed-Size
- - X-Reduction-Percent
+- X-Original-Size
+- X-Compressed-Size
+- X-Reduction-Percent
 
 ## 5. File Requirements
 
@@ -240,18 +267,20 @@ The backend must:
 
 **Minimum files to merge:** 2 (`MIN_FILES_FOR_MERGE`, configurable)
 
-**Default compression level:** recommended(`DEFAULT_COMPRESSION_LEVEL`, configurable) 
+**Default compression level:** recommended(`DEFAULT_COMPRESSION_LEVEL`, configurable)
 **Allowed input formats:**
+
 ```text
 Word → PDF:  .doc, .docx
 PDF → Word:  .pdf
 Merge PDF:   .pdf
-Split PDF:   .pdf 
+Split PDF:   .pdf
 Compress PDF: .pdf
 Organize PDF: .pdf
 ```
 
 **Output formats:**
+
 ```text
 Word → PDF:  .pdf
 PDF → Word:  .docx
@@ -294,4 +323,3 @@ Organize PDF:  .pdf
 - Public rate limiting (stubbed behind a feature flag, not enabled by default)
 
 These are added incrementally, one module at a time, after Module 3 is stable.
-

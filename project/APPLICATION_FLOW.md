@@ -146,146 +146,8 @@ Validate PDF (extension, MIME, size)
                           ▼
                    Cleanup temp workspace (always, even on error)
 ```
-
-## 4. Compress PDF Flow
-
-```text
-User
- |
- ▼
-Compress PDF page
- |
- ▼
-Select / Drag & Drop a single PDF
- |
- ▼
-Choose compression level
- |
- ├── low
- ├── recommended
- └── extreme
- |
- ▼
-User clicks "Compress PDF"
- |
- ▼
-Upload file
- |
- ▼
-Backend API
- |
- ▼
-Validate PDF (extension, MIME, size)
- |
- ├── Invalid → Error response
- |
- └── Valid
-        |
-        ▼
-     Create UUID-named temp workspace
-        |
-        ▼
-     PyMuPDF optimization (level-aware)
-        |
-        ├── Failed → CONVERSION_FAILED
-        |
-        └── Success
-              |
-              ▼
-         Compute original/compressed sizes and reduction percentage
-              |
-              ▼
-         Return compressed.pdf with response headers
-              |
-              ▼
-         Download button
-              |
-              ▼
-         User downloads compressed PDF
-              |
-              ▼
-         Cleanup temp workspace (always, even on error)
-```
-
-React → FastAPI → validation → PyMuPDF optimization → response headers → cleanup
-
----
-
-## 5. Organize PDF Flow
-
-```text
-User
- |
- ▼
-Organize PDF page
- |
- ▼
-Select / Drag & Drop a single PDF
- |
- ▼
-Frontend requests page count via /api/v1/pdf/organize/info
- |
- ▼
-Render page list editor
- |
- ├── Reorder pages
- ├── Remove pages
- └── Rotate pages
- |
- ▼
-User clicks "Apply changes"
- |
- ▼
-Upload file + page specification (JSON array)
- |
- ▼
-Backend API
- |
- ▼
-Validate PDF (extension, MIME, size)
- |
- ├── Invalid → Error response
- |
- └── Valid
-        |
-        ▼
-     Create UUID-named temp workspace
-        |
-        ▼
-     Parse and validate page specification
-        |
-        ├── Malformed / invalid page references → INVALID_PAGE_SPEC
-        |
-        └── Valid spec
-              |
-              ▼
-           PyMuPDF: reorder + remove + rotate pages
-              |
-              ├── Empty final document → EMPTY_DOCUMENT
-              |
-              └── Success
-                    |
-                    ▼
-               organized.pdf generated
-                    |
-                    ▼
-               Return organized.pdf
-                    |
-                    ▼
-               Download button
-                    |
-                    ▼
-               User downloads organized PDF
-                    |
-                    ▼
-               Cleanup temp workspace (always, even on error)
-```
-
-React → FastAPI → validation → page-spec parsing → PyMuPDF reorganize → download → cleanup
-
----
-
-## 6. Merge PDF Flow
+----
+## 4. Merge PDF Flow
 
 ```text
 User
@@ -352,7 +214,7 @@ React → FastAPI → validation → temporary workspace → PyMuPDF → merged 
 
 ---
 
-## 7. Split PDF Flow
+## 5. Split PDF Flow
 
 ```text
 User
@@ -433,6 +295,169 @@ Validate PDF (extension, MIME, size)
 React → FastAPI → validation → PyMuPDF → individual PDFs → ZIP → response → cleanup
 
 ---
+
+## 6. Compress PDF Flow
+
+```text
+User
+ |
+ ▼
+Compress PDF page
+ |
+ ▼
+Select / Drag & Drop a single PDF
+ |
+ ▼
+Choose compression level
+ |
+ ├── low
+ ├── recommended
+ └── extreme
+ |
+ ▼
+User clicks "Compress PDF"
+ |
+ ▼
+Upload file
+ |
+ ▼
+Backend API
+ |
+ ▼
+Validate PDF (extension, MIME, size)
+ |
+ ├── Invalid → Error response
+ |
+ └── Valid
+        |
+        ▼
+     Create UUID-named temp workspace
+        |
+        ▼
+     PyMuPDF optimization (level-aware)
+        |
+        ├── Failed → CONVERSION_FAILED
+        |
+        └── Success
+              |
+              ▼
+         Compute original/compressed sizes and reduction percentage
+              |
+              ▼
+         Return compressed.pdf with response headers
+              |
+              ▼
+         Download button
+              |
+              ▼
+         User downloads compressed PDF
+              |
+              ▼
+         Cleanup temp workspace (always, even on error)
+```
+
+React → FastAPI → validation → PyMuPDF optimization → response headers → cleanup
+
+---
+
+## 7. Organize PDF Flow
+
+```text
+User
+ |
+ ▼
+Organize PDF page
+ |
+ ▼
+Select / Drag & Drop a PDF
+ |
+ ▼
+Upload PDF
+ |
+ ▼
+POST /api/v1/pdf/organize/info
+ |
+ ▼
+Backend validates PDF
+ |
+ ▼
+Return page count
+ |
+ ▼
+Initialize page list
+ |
+ ▼
+Organize Editor
+ |
+ ├── Select page
+ │      |
+ │      ▼
+ │   Show selected page in center preview
+ │
+ ├── Drag & Drop
+ │      |
+ │      ▼
+ │   Change page order
+ │
+ ├── Rotate
+ │      |
+ │      ▼
+ │   Rotate selected page by 90°
+ │
+ └── Remove
+        |
+        ▼
+     Remove selected page
+        |
+        ▼
+User clicks "Organize PDF"
+        |
+        ▼
+Create page specification
+        |
+        ▼
+POST /api/v1/pdf/organize
+        |
+        ▼
+Backend
+        |
+        ▼
+Validate file
+        |
+        ▼
+Validate page specification
+        |
+        ├── Invalid
+        │      |
+        │      ▼
+        │   INVALID_PAGE_SPEC
+        │
+        └── Valid
+               |
+               ▼
+          PyMuPDF
+               |
+               ▼
+          Reorder pages
+               |
+               ▼
+          Apply rotations
+               |
+               ▼
+          organized.pdf
+               |
+               ▼
+          Download response
+               |
+               ▼
+          Cleanup
+```
+
+React → FastAPI → validation → page-spec parsing → PyMuPDF reorganize → download → cleanup
+
+---
+
+
 
 ## 8. Frontend State Flow
 

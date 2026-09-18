@@ -20,7 +20,7 @@ import type {
   ConversionState,
 } from "../types/conversion";
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
+pdfjsLib.GlobalWorkerOptions.workerSrc = `${pdfWorker}?v=2`;
 
 interface PageItem {
   id: number;
