@@ -10,11 +10,6 @@ Describe what changed and why.
 - [ ] Refactoring
 - [ ] Build / maintenance
 
-## Changes made
-
-- 
-- 
-
 ## Testing
 
 Describe the tests, commands, or manual checks performed.
@@ -31,7 +26,5 @@ Describe the tests, commands, or manual checks performed.
 - [ ] I updated documentation where needed.
 - [ ] I have not included secrets or sensitive data.
 - [ ] I have requested review from the relevant code owner.
-
-## Related issue
 
 Closes #
