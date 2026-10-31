@@ -1,0 +1,7 @@
+# Default owner for all files in this repository.
+# Replace this account with a maintainer team or reviewer account as the project grows.
+* @tanushkat96
+
+# Governance and contribution metadata
+/.github/ @tanushkat96
+/CONTRIBUTING.md @tanushkat96
